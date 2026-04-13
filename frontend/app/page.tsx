@@ -42,7 +42,7 @@ export default async function HomePage() {
           Escola de dança dedicada ao desenvolvimento artístico e pessoal.
         </p>
         <Link href="/dashboard">
-          <button className="bg-blue-600 text-white px-6 py-3 rounded-xl text-lg hover:bg-blue-700">
+          <button className="bg-gray-500 text-white px-6 py-3 rounded-xl text-lg hover:bg-gray-600">
             Entrar
           </button>
         </Link>
@@ -54,7 +54,7 @@ export default async function HomePage() {
           <h3 className="text-xl font-semibold mb-2">Coaching</h3>
           <p className="text-gray-600 mb-4">Gestão de sessões de coaching.</p>
           <Link href="/coaching">
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
               Ir para Coaching
             </button>
           </Link>
@@ -64,7 +64,7 @@ export default async function HomePage() {
           <h3 className="text-xl font-semibold mb-2">Inventário</h3>
           <p className="text-gray-600 mb-4">Controle de itens e requisições.</p>
           <Link href="/inventario">
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
               Ir para Inventário
             </button>
           </Link>
