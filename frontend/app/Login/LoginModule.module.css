@@ -1,0 +1,168 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Jost:wght@300;400;500&display=swap');
+
+.loginRoot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* Fundo claro sofisticado */
+  background: radial-gradient(circle at center, #ffffff 0%, #f7f3f9 100%);
+  font-family: 'Jost', sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.decorativeCircle {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(212, 83, 126, 0.08);
+  pointer-events: none;
+}
+
+.logoArea {
+  text-align: center;
+  margin-bottom: 0.1rem;
+  margin-top: -4rem; /* Levanta o logo para um posicionamento mais centralizado */
+  position: relative;
+  z-index: 2;
+}
+
+.logoSymbol {
+  margin: 0 auto 0rem;
+  display: block;
+  /* Filtro opcional para garantir que o preto seja profundo */
+  filter: drop-shadow(0px 4px 10px rgba(0,0,0,0.05));
+}
+
+.brandName {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 42px;
+  font-weight: 300;
+  color: #2d2d2d; /* Cinza muito escuro em vez de branco */
+  letter-spacing: 0.08em;
+  line-height: 1;
+  margin: 0;
+}
+
+.brandName em {
+  color: #D4537E;
+  font-style: italic;
+}
+
+.brandTagline {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: #8e8e8e;
+  text-transform: uppercase;
+  margin: 0.6rem 0 0;
+}
+
+.loginCard {
+  position: relative;
+  z-index: 2;
+  width: 90%;
+  max-width: 360px;
+  background: #ffffff;
+  /* Sombra suave para dar efeito de papel/elevação */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04);
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+}
+
+.formTitle {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #1a1a1a;
+  margin-bottom: 0.4rem;
+}
+
+.formSubtitle {
+  font-size: 13px;
+  color: #7a7a7a;
+  margin-bottom: 2rem;
+}
+
+.fieldGroup {
+  margin-bottom: 1.2rem;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-bottom: 0.5rem;
+}
+
+.fieldInput {
+  width: 100%;
+  background: #fafafa;
+  border: 1px solid #eeeeee;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  font-size: 14px;
+  color: #333;
+  transition: all 0.3s ease;
+}
+
+.fieldInput:focus {
+  background: #ffffff;
+  border-color: #D4537E;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 83, 126, 0.05);
+}
+
+.btnLogin {
+  width: 100%;
+  padding: 0.85rem;
+  /* Gradiente baseado nas cores da Ent'artes */
+  background: linear-gradient(135deg, #4a3a63 0%, #2d233c 100%);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  transition: transform 0.2s;
+}
+
+.btnLogin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin: 1.5rem 0;
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: #eeeeee;
+}
+
+.dividerText {
+  color: #bbbbbb;
+  font-size: 12px;
+}
+
+.registerLink {
+  color: #D4537E;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.registerLink:hover {
+  text-decoration: underline;
+}

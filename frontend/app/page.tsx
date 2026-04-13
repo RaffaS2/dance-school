@@ -1,18 +1,6 @@
-import Link from 'next/link'
+// frontend/app/Login/page.tsx
+import Login from './Login/Login'; // Importa o componente que você criou acima
 
-async function getData(){
-  const res = await fetch('http://localhost:3001')
-  const data = await res.json()
-  return data
+export default function Page() {
+  return <Login />; // Exibe o componente Login
 }
-async function home() {
-  const data = await getData()
-  return (
-    <div className='min-h-screen bg-blue-950 flex items-center justify-center'>
-      <h1 className='text-white text-4xl font-bold'>{data.message}</h1>
-      <Link href="/dashboard">go to dashboard</Link>
-    </div>
-  )
-}
-
-export default home
