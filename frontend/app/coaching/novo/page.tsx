@@ -10,6 +10,9 @@ const professores = [
 
 const alunos = ["Ana", "Pedro", "Carlos"];
 
+const modalidades = ["Ballet", "Hip Hop", "Contemporâneo"];
+const estudios = ["Estúdio 1", "Estúdio 2", "Estúdio 3"];
+
 export default function NovoCoachingPage() {
   const [selectedProfessor, setSelectedProfessor] = useState("");
   const [horarios, setHorarios] = useState<string[]>([]);
@@ -27,7 +30,6 @@ export default function NovoCoachingPage() {
 
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
-        {/* Esquerda */}
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
@@ -37,7 +39,6 @@ export default function NovoCoachingPage() {
           <h1 className="text-xl font-bold">Requisitar Coaching</h1>
         </div>
 
-        {/* Direita */}
         <Link href="/coaching">
           <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
             Voltar
@@ -50,6 +51,17 @@ export default function NovoCoachingPage() {
         <div className="bg-white p-6 rounded-2xl shadow max-w-lg w-full">
           <h2 className="text-xl font-semibold mb-4">Novo Coaching</h2>
 
+                    {/* Professor */}
+          <select
+            className="w-full mb-4 p-2 border rounded"
+            onChange={(e) => handleProfessorChange(e.target.value)}
+          >
+            <option>Selecionar Professor</option>
+            {professores.map((p) => (
+              <option key={p.nome}>{p.nome}</option>
+            ))}
+          </select>
+
           {/* Aluno */}
           <select className="w-full mb-4 p-2 border rounded">
             <option>Selecionar Aluno</option>
@@ -58,14 +70,19 @@ export default function NovoCoachingPage() {
             ))}
           </select>
 
-          {/* Professor */}
-          <select
-            className="w-full mb-4 p-2 border rounded"
-            onChange={(e) => handleProfessorChange(e.target.value)}
-          >
-            <option>Selecionar Professor</option>
-            {professores.map((p) => (
-              <option key={p.nome}>{p.nome}</option>
+          {/* Modalidade */}
+          <select className="w-full mb-4 p-2 border rounded">
+            <option>Selecionar Modalidade</option>
+            {modalidades.map((m) => (
+              <option key={m}>{m}</option>
+            ))}
+          </select>
+
+          {/* Estúdio */}
+          <select className="w-full mb-4 p-2 border rounded">
+            <option>Selecionar Estúdio</option>
+            {estudios.map((e) => (
+              <option key={e}>{e}</option>
             ))}
           </select>
 
