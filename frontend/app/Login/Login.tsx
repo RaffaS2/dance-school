@@ -1,6 +1,7 @@
 // frontend/app/Login/Login.tsx
 import Link from 'next/link'
-import EntArtesLogo from '../Images/EntArtesLogo.png'
+
+
 
 export default function Login() {
   return (
@@ -19,7 +20,7 @@ export default function Login() {
       {/* Logo */}
       <div className="text-center -mt-16 mb-0.5 relative z-10">
         <img
-          src={EntArtesLogo.src}
+          src="/Logo.png"
           className="mx-auto block drop-shadow-[0px_4px_10px_rgba(0,0,0,0.05)]"
           width={380}
           height={380}
