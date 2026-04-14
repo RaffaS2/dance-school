@@ -1,0 +1,57 @@
+import Link from "next/link";
+
+export default function CoachingPage() {
+  const coachings = [
+    { id: 1, aluno: "Ana", professor: "Maria", data: "2026-04-10" },
+    { id: 2, aluno: "Pedro", professor: "João", data: "2026-04-11" },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      
+      {/* Header */}
+      <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
+        {/* Esquerda */}
+        <div className="flex items-center gap-4">
+          <img
+            src="/logo.png"
+            alt="Ent'Artes Logo"
+            className="h-12 object-contain"
+          />
+          <h1 className="text-xl font-bold">Coachings</h1>
+        </div>
+
+        {/* Direita */}
+        <div className="flex gap-3">
+          <Link href="/">
+            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+              Página Inicial
+            </button>
+          </Link>
+
+          <Link href="/coaching/novo">
+            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+              + Requisitar Coaching
+            </button>
+          </Link>
+        </div>
+      </header>
+
+      {/* Conteúdo */}
+      <div className="p-6">
+        <div className="grid gap-4">
+          {coachings.map((c) => (
+            <div
+              key={c.id}
+              className="bg-white p-4 rounded-xl shadow"
+            >
+              <p className="font-semibold">Aluno: {c.aluno}</p>
+              <p className="text-gray-600">Professor: {c.professor}</p>
+              <p className="text-gray-500 text-sm">Data: {c.data}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
