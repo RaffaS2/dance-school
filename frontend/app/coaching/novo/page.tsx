@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 const professores = [
@@ -29,10 +30,12 @@ export default function NovoCoachingPage() {
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
         {/* Esquerda */}
         <div className="flex items-center gap-4">
-          <img
+          <Image
             src="/logo.png"
             alt="Ent'Artes Logo"
-            className="h-12 object-contain"
+            width={144}
+            height={48}
+            className="h-12 w-auto object-contain"
           />
           <h1 className="text-xl font-bold">Requisitar Coaching</h1>
         </div>
