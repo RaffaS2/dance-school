@@ -12,6 +12,7 @@ type InventoryItem = {
 	total: number;
 	emUso: number;
 	visual: string;
+	adicionadoPorUtilizador: boolean;
 };
 
 const utilizadorAtual = "Joao Silva";
@@ -25,6 +26,7 @@ const itensIniciais: InventoryItem[] = [
 		total: 6,
 		emUso: 4,
 		visual: "SB",
+		adicionadoPorUtilizador: false,
 	},
 	{
 		id: 2,
@@ -34,6 +36,7 @@ const itensIniciais: InventoryItem[] = [
 		total: 5,
 		emUso: 2,
 		visual: "CD",
+		adicionadoPorUtilizador: false,
 	},
 	{
 		id: 3,
@@ -43,6 +46,7 @@ const itensIniciais: InventoryItem[] = [
 		total: 4,
 		emUso: 1,
 		visual: "MB",
+		adicionadoPorUtilizador: false,
 	},
 	{
 		id: 4,
@@ -52,6 +56,7 @@ const itensIniciais: InventoryItem[] = [
 		total: 3,
 		emUso: 1,
 		visual: "AG",
+		adicionadoPorUtilizador: false,
 	},
 	{
 		id: 5,
@@ -61,6 +66,7 @@ const itensIniciais: InventoryItem[] = [
 		total: 2,
 		emUso: 0,
 		visual: "MS",
+		adicionadoPorUtilizador: false,
 	},
 ];
 
@@ -166,6 +172,7 @@ export default function InventoryPage() {
 				.map((p) => p[0]?.toUpperCase() ?? "")
 				.join("")
 				.slice(0, 2),
+			adicionadoPorUtilizador: true,
 		};
 
 		setItens((atual) => [novoItem, ...atual]);
@@ -173,6 +180,22 @@ export default function InventoryPage() {
 		setNovaCategoria("");
 		setNovaDescricao("");
 		setNovaQuantidade("1");
+	}
+
+	function removerItem(item: InventoryItem) {
+		if (!item.adicionadoPorUtilizador) return;
+		if (item.emUso > 0 || requisicoesUtilizador[item.id]) return;
+
+		const confirmado = window.confirm(`Remover o item \"${item.nome}\" do inventário?`);
+		if (!confirmado) return;
+
+		setItens((atual) => atual.filter((i) => i.id !== item.id));
+		setRequisicoesUtilizador((atual) => {
+			if (!atual[item.id]) return atual;
+			const copia = { ...atual };
+			delete copia[item.id];
+			return copia;
+		});
 	}
 
 	return (
@@ -228,7 +251,9 @@ export default function InventoryPage() {
 						className="fade-in rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-sm md:p-6"
 					>
 						<h2 className="text-lg font-bold md:text-xl">Adicionar Novo Item</h2>
-						<p className="mt-1 text-sm text-zinc-600">Este registo simula o fluxo de criação por utilizadores.</p>
+						<p className="mt-1 text-sm text-zinc-600">
+							Itens adicionados aqui podem ser removidos se não estiverem em uso.
+						</p>
 
 						<div className="mt-4 space-y-3">
 							<input
@@ -337,25 +362,40 @@ export default function InventoryPage() {
 								<p className="mt-2 text-sm text-zinc-600">{item.descricao}</p>
 								<p className="mt-3 text-xs font-medium uppercase tracking-wide text-zinc-500">{item.categoria}</p>
 								<p className="mt-1 text-xs text-zinc-500">
+									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
+								</p>
+								<p className="mt-1 text-xs text-zinc-500">
 									Disponíveis: <strong>{Math.max(0, disponiveis)}</strong> / {item.total}
 								</p>
 
-								{emPosseDoUtilizador ? (
-									<button
-										onClick={() => devolverItem(item)}
-										className="mt-4 w-full rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700"
-									>
-										Devolver Item
-									</button>
-								) : (
-									<button
-										onClick={() => requisitarItem(item)}
-										disabled={disponiveis <= 0}
-										className="mt-4 w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
-									>
-										Requisitar Item
-									</button>
-								)}
+								<div className="mt-4 grid gap-2">
+									{emPosseDoUtilizador ? (
+										<button
+											onClick={() => devolverItem(item)}
+											className="w-full rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700"
+										>
+											Devolver Item
+										</button>
+									) : (
+										<button
+											onClick={() => requisitarItem(item)}
+											disabled={disponiveis <= 0}
+											className="w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
+										>
+											Requisitar Item
+										</button>
+									)}
+
+									{item.adicionadoPorUtilizador && (
+										<button
+											onClick={() => removerItem(item)}
+											disabled={item.emUso > 0 || Boolean(requisicoesUtilizador[item.id])}
+											className="w-full rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+										>
+											Remover Item
+										</button>
+									)}
+								</div>
 							</article>
 						);
 					})}
