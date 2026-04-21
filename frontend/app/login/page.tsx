@@ -62,7 +62,7 @@ export default function Login() {
           />
         </div>
 
-        <a href="#" className="block text-[12px] text-[#D4537E] hover:underline mb-0 mt-1">
+        <a href="/forgetpassword" className="block text-[12px] text-[#D4537E] hover:underline mb-0 mt-1">
           Esqueceste a palavra-passe?
         </a>
 
@@ -70,7 +70,7 @@ export default function Login() {
           Entrar
         </button>
 
-        {/* Divider */}
+        {/* Divisor */}
         <div className="flex items-center justify-center gap-2.5 w-full my-6">
           <div className="flex-1 h-px bg-[#eeeeee]" />
           <span className="text-[#bbbbbb] text-xs">ou</span>
@@ -79,7 +79,7 @@ export default function Login() {
 
         <p className="text-sm text-[#7a7a7a]">
           Ainda não tens conta?{' '}
-          <Link href="/register" className="text-[#D4537E] font-medium no-underline hover:underline">
+          <Link href="/coaching/signup" className="text-[#D4537E] font-medium no-underline hover:underline">
             Regista-te aqui
           </Link>
         </p>
