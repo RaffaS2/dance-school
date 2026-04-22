@@ -176,7 +176,7 @@ export default function InventoryPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#f8d9a0_0%,_#f6ecd7_36%,_#f8f4ea_100%)] text-zinc-900">
+		<div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#f8d9a0_0%,_#f6ecd7_36%,_#f8f4ea_100%)] text-zinc-900 dark:bg-[radial-gradient(circle_at_top_right,_#3b3f48_0%,_#2f3136_42%,_#232428_100%)]">
 			<div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
 				<header className="fade-in rounded-3xl border border-zinc-900/10 bg-white/80 p-5 shadow-[0_16px_40px_rgba(52,44,28,0.1)] backdrop-blur md:p-8">
 					<p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Escola de Danca</p>

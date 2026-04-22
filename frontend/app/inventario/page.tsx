@@ -91,6 +91,7 @@ export default function InventoryPage() {
 	const [novaCategoria, setNovaCategoria] = useState("");
 	const [novaDescricao, setNovaDescricao] = useState("");
 	const [novaQuantidade, setNovaQuantidade] = useState("1");
+	const [temaEscuroAtivo, setTemaEscuroAtivo] = useState(false);
 
 	const categorias = useMemo(() => {
 		const todas = itens.map((item) => item.categoria);
@@ -199,7 +200,36 @@ export default function InventoryPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#f8d9a0_0%,_#f6ecd7_36%,_#f8f4ea_100%)] text-zinc-900">
+		<div
+			className={`min-h-screen text-zinc-900 ${
+				temaEscuroAtivo
+					? "inventario-dark bg-[radial-gradient(circle_at_top_right,_#3b3f48_0%,_#2f3136_42%,_#232428_100%)]"
+					: "bg-[radial-gradient(circle_at_top_right,_#f8d9a0_0%,_#f6ecd7_36%,_#f8f4ea_100%)]"
+			}`}
+		>
+			<button
+				type="button"
+				onClick={() => setTemaEscuroAtivo((atual) => !atual)}
+				aria-label="Alternar tema claro/escuro do inventário"
+				title="Alternar tema do inventário"
+				className="fixed right-4 top-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-400/40 bg-white/90 text-zinc-900 shadow-lg backdrop-blur transition hover:scale-[1.03] hover:bg-white"
+			>
+				{temaEscuroAtivo ? (
+					<svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+						<path
+							d="M12 4.5a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V5.5a1 1 0 0 1 1-1Zm0 12.5a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V18a1 1 0 0 1 1-1Zm7.5-6a1 1 0 0 1 1 1 1 1 0 0 1-1 1H18a1 1 0 1 1 0-2h1.5Zm-13.5 0a1 1 0 1 1 0 2H4.5a1 1 0 1 1 0-2H6Zm10.607-4.607a1 1 0 0 1 1.414 0l1.06 1.06a1 1 0 1 1-1.414 1.414l-1.06-1.06a1 1 0 0 1 0-1.414ZM5.919 17.02a1 1 0 0 1 1.414 0l1.06 1.06a1 1 0 1 1-1.414 1.414l-1.06-1.06a1 1 0 0 1 0-1.414Zm12.162 2.474a1 1 0 0 1-1.414 0l-1.06-1.06a1 1 0 1 1 1.414-1.414l1.06 1.06a1 1 0 0 1 0 1.414ZM7.393 7.393a1 1 0 0 1-1.414 0l-1.06-1.06A1 1 0 1 1 6.333 4.92l1.06 1.06a1 1 0 0 1 0 1.414ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"
+							fill="currentColor"
+						/>
+					</svg>
+				) : (
+					<svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+						<path
+							d="M14.5 3a1 1 0 0 1 .94 1.34 8 8 0 1 0 10.22 10.22 1 1 0 0 1 1.34.94A10 10 0 1 1 14.5 3Z"
+							fill="currentColor"
+						/>
+					</svg>
+				)}
+			</button>
 			<div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
 				<header className="fade-in rounded-3xl border border-zinc-900/10 bg-white/80 p-5 shadow-[0_16px_40px_rgba(52,44,28,0.1)] backdrop-blur md:p-8">
 					<p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Escola de Danca</p>
