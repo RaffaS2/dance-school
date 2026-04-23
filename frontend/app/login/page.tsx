@@ -1,11 +1,5 @@
-// frontend/app/Login/Login.tsx
-import Link from 'next/link'
-<<<<<<< HEAD
-=======
+import Link from "next/link";
 import Image from "next/image";
->>>>>>> main
-
-
 
 export default function Login() {
   return (
@@ -23,11 +17,7 @@ export default function Login() {
 
       {/* Logo */}
       <div className="text-center -mt-16 mb-0.5 relative z-10">
-<<<<<<< HEAD
-        <img
-=======
         <Image
->>>>>>> main
           src="/Logo.png"
           className="mx-auto block drop-shadow-[0px_4px_10px_rgba(0,0,0,0.05)]"
           width={380}
@@ -42,6 +32,7 @@ export default function Login() {
         <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">
           Bem-vindo/a
         </h2>
+
         <p className="text-[13px] text-[#7a7a7a] mb-8">
           Acede à tua conta para continuar
         </p>
@@ -86,12 +77,12 @@ export default function Login() {
         </div>
 
         <p className="text-sm text-[#7a7a7a]">
-          Ainda não tens conta?{' '}
+          Ainda não tens conta?{" "}
           <Link href="/register" className="text-[#D4537E] font-medium no-underline hover:underline">
             Regista-te aqui
           </Link>
         </p>
       </div>
     </div>
-  )
+  );
 }
