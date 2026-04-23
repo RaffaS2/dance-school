@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import Image from "next/image";
+>>>>>>> main
 import Link from "next/link";
 
 export default function CoachingPage() {
@@ -24,10 +28,19 @@ export default function CoachingPage() {
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
         <div className="flex items-center gap-4">
+<<<<<<< HEAD
           <img
             src="/logo.png"
             alt="Ent'Artes Logo"
             className="h-12 object-contain"
+=======
+          <Image
+            src="/logo.png"
+            alt="Ent'Artes Logo"
+            width={144}
+            height={48}
+            className="h-12 w-auto object-contain"
+>>>>>>> main
           />
           <h1 className="text-xl font-bold">Coachings</h1>
         </div>
