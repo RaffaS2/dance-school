@@ -1,4 +1,5 @@
 // CRUD COMPLETO - CREATE, READ, UPDATE E DELETE
+
 const pool = require('../db')
 
 // cria o coaching

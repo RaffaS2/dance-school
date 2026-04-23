@@ -1,4 +1,3 @@
-
 const express = require('express')
 const app = express() //cria a app
 const pool = require('./db')
