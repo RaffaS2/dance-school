@@ -10,7 +10,6 @@ const professores = [
 ];
 
 const alunos = ["Ana", "Pedro", "Carlos"];
-
 const modalidades = ["Ballet", "Hip Hop", "Contemporâneo"];
 const estudios = ["Estúdio 1", "Estúdio 2", "Estúdio 3"];
 
@@ -54,14 +53,16 @@ export default function NovoCoachingPage() {
         <div className="bg-white p-6 rounded-2xl shadow max-w-lg w-full">
           <h2 className="text-xl font-semibold mb-4">Novo Coaching</h2>
 
-                    {/* Professor */}
+          {/* Professor */}
           <select
             className="w-full mb-4 p-2 border rounded"
             onChange={(e) => handleProfessorChange(e.target.value)}
           >
             <option>Selecionar Professor</option>
             {professores.map((p) => (
-              <option key={p.nome}>{p.nome}</option>
+              <option key={p.nome} value={p.nome}>
+                {p.nome}
+              </option>
             ))}
           </select>
 
@@ -69,7 +70,9 @@ export default function NovoCoachingPage() {
           <select className="w-full mb-4 p-2 border rounded">
             <option>Selecionar Aluno</option>
             {alunos.map((a) => (
-              <option key={a}>{a}</option>
+              <option key={a} value={a}>
+                {a}
+              </option>
             ))}
           </select>
 
@@ -77,7 +80,9 @@ export default function NovoCoachingPage() {
           <select className="w-full mb-4 p-2 border rounded">
             <option>Selecionar Modalidade</option>
             {modalidades.map((m) => (
-              <option key={m}>{m}</option>
+              <option key={m} value={m}>
+                {m}
+              </option>
             ))}
           </select>
 
@@ -85,7 +90,9 @@ export default function NovoCoachingPage() {
           <select className="w-full mb-4 p-2 border rounded">
             <option>Selecionar Estúdio</option>
             {estudios.map((e) => (
-              <option key={e}>{e}</option>
+              <option key={e} value={e}>
+                {e}
+              </option>
             ))}
           </select>
 

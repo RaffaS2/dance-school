@@ -21,7 +21,7 @@ export default function CoachingPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      
+
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
         <div className="flex items-center gap-4">
@@ -54,18 +54,11 @@ export default function CoachingPage() {
       <div className="p-6">
         <div className="grid gap-4">
           {coachings.map((c) => (
-            <div
-              key={c.id}
-              className="bg-white p-4 rounded-xl shadow"
-            >
+            <div key={c.id} className="bg-white p-4 rounded-xl shadow">
               <p className="font-semibold">Aluno: {c.aluno}</p>
               <p className="text-gray-600">Professor: {c.professor}</p>
-              <p className="text-gray-500 text-sm">
-                Data: {c.data}
-              </p>
-              <p className="text-gray-500 text-sm">
-                Hora: {c.hora}
-              </p>
+              <p className="text-gray-500 text-sm">Data: {c.data}</p>
+              <p className="text-gray-500 text-sm">Hora: {c.hora}</p>
             </div>
           ))}
         </div>

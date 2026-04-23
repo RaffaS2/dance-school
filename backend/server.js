@@ -1,8 +1,6 @@
-
 const express = require('express')
 const app = express() //cria a app
 const pool = require('./db')
-const userRouter = require('./routes/users')
 
 app.use(express.json()) //permite que o SV leia JSON no corpo dos pedidos
 
@@ -11,7 +9,7 @@ app.get('/', (req, res) =>{ // cria uma rota GET que devolve uma msg
 
 })
 
-app.use('/users', userRouter)
+app.use('/', require('./routes/index'))
 
 // Rota GET para testar a ligação à base de dados
 app.get('/test-db', async (req, res) => {
