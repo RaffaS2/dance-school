@@ -1,5 +1,3 @@
-//COMPLETE CRUD HERE - CREATE, READ, UPDATE AND DELETE
-
 const pool = require('../db')
 
 // create user

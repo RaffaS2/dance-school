@@ -1,5 +1,6 @@
 // Importa o Pool do pacote pg
 // O Pool gere múltiplas ligações à base de dados de forma eficiente
+
 const { Pool } = require('pg')
 
 // Cria uma instância do Pool com as configurações de ligação
