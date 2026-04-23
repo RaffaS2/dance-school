@@ -1,16 +1,3 @@
-<<<<<<< HEAD
-import React from 'react'
-
-function dashboard() {
-  return (
-    <div>
-      teste1
-    </div>
-  )
-}
-
-export default dashboard
-=======
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -31,7 +18,11 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
         <div className="flex items-center gap-4">
-          <img src="/logo.png" alt="Ent'Artes Logo" className="h-12 object-contain" />
+          <img
+            src="/logo.png"
+            alt="Ent'Artes Logo"
+            className="h-12 object-contain"
+          />
           <h1 className="text-xl font-bold">Dashboard</h1>
         </div>
 
@@ -67,7 +58,10 @@ export default function DashboardPage() {
           <h2 className="text-xl font-bold mb-4">Próximas Aulas</h2>
           <div className="space-y-3">
             {proximasAulas.map((aula) => (
-              <div key={aula.id} className="p-3 rounded-lg border border-gray-300">
+              <div
+                key={aula.id}
+                className="p-3 rounded-lg border border-gray-300"
+              >
                 <p className="font-semibold">{aula.nome}</p>
                 <p className="text-gray-600 text-sm">
                   {aula.data} às {aula.hora}
@@ -80,4 +74,3 @@ export default function DashboardPage() {
     </div>
   );
 }
->>>>>>> main
