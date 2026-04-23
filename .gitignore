@@ -1,0 +1,6 @@
+FORME.md
+node_modules/
+.env
+.next/
+.env.local
+
