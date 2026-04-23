@@ -1,12 +1,11 @@
 @import "tailwindcss";
-<<<<<<< HEAD
-=======
 
+/*
 body {
 	transition: background-color 220ms ease, color 220ms ease;
 }
 
-/* Discord-like dark neutrals scoped to inventario page only. */
+
 .inventario-dark {
 	color: #e3e5e8;
 }
@@ -139,4 +138,4 @@ body {
 		transform: translateY(0);
 	}
 }
->>>>>>> main
+*/
