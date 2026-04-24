@@ -34,7 +34,7 @@ export default async function HomePage() {
               Login
             </button>
           </Link>
-          <Link href="/register">
+          <Link href="/signup">
             <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">
               Registar
             </button>
