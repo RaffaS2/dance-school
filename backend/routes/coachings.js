@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const authorize = require('../middleware/authorize')
+const authorize = require('./authorize')
 const { createCoaching, readAllCoachings, readCoachingById, updateCoaching, deleteCoaching } = require('../controllers/coachingsController')
 
 router.post('/',     authorize(1, 2),    createCoaching)      

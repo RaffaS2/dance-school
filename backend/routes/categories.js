@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const authorize = require('../middleware/authorize')
+const authorize = require('./authorize')
 const { createCategory, readAllCategories, readCategoryById, updateCategory, deleteCategory } = require('../controllers/categoriesController')
 
 router.post('/',     authorize(1),       createCategory)      
