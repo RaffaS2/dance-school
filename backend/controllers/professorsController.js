@@ -1,14 +1,13 @@
+// CRUD COMPLETO - CREATE, READ, UPDATE E DELETE
 const pool = require('../db')
 
-// 🔥 CREATE
+// cria o professor
 const createProfessor = async (req, res) => {
   try {
     const { specialty, id_user } = req.body
 
     const result = await pool.query(
-      `INSERT INTO professors (specialty, id_user) 
-       VALUES ($1, $2) 
-       RETURNING *`,
+      `INSERT INTO professors (specialty, id_user) VALUES ($1, $2) RETURNING *`,
       [specialty, id_user]
     )
 
@@ -18,7 +17,7 @@ const createProfessor = async (req, res) => {
   }
 }
 
-// 🔥 READ ALL (COM NOME)
+// lê todos os professores
 const readAllProfessors = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -38,7 +37,7 @@ const readAllProfessors = async (req, res) => {
   }
 }
 
-// 🔥 READ BY ID (COM NOME)
+// lê o professor pelo id 
 const readProfessorById = async (req, res) => {
   try {
     const { id } = req.params
@@ -60,7 +59,7 @@ const readProfessorById = async (req, res) => {
   }
 }
 
-// 🔥 UPDATE
+// atualiza o professor pelo id
 const updateProfessor = async (req, res) => {
   try {
     const { id } = req.params
@@ -80,7 +79,7 @@ const updateProfessor = async (req, res) => {
   }
 }
 
-// 🔥 DELETE
+// elimina o professor pelo id
 const deleteProfessor = async (req, res) => {
   try {
     const { id } = req.params
@@ -98,10 +97,4 @@ const deleteProfessor = async (req, res) => {
   }
 }
 
-module.exports = {
-  createProfessor,
-  readAllProfessors,
-  readProfessorById,
-  updateProfessor,
-  deleteProfessor
-}
+module.exports = { createProfessor, readAllProfessors, readProfessorById, updateProfessor, deleteProfessor }
