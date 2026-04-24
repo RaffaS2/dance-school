@@ -7,28 +7,24 @@ import Link from 'next/link'
 export default function Register() {
   const router = useRouter()
 
-  // Estado dos campos do formulário
   const [name, setName] = useState('')
   const [apelido, setApelido] = useState('')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('') // NOVO: número de telefone
+  const [phone, setPhone] = useState('')
+  const [userType, setUserType] = useState('3')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [terms, setTerms] = useState(false)
-
-  // Estado de feedback
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleRegister = async () => {
     setError('')
 
-    // Validações no frontend antes de chamar o backend
     if (!name || !apelido || !email || !phone || !password || !confirmPassword) {
       setError('Por favor preenche todos os campos.')
       return
     }
-    // NOVO: valida que o telefone só tem dígitos e tem entre 9 e 15 caracteres
     if (!/^\d{9,15}$/.test(phone)) {
       setError('Número de telefone inválido. Usa apenas dígitos (9 a 15).')
       return
@@ -56,8 +52,9 @@ export default function Register() {
         body: JSON.stringify({
           name: `${name} ${apelido}`,
           email,
-          phone_number: phone, // NOVO: enviado para o backend
+          phone_number: phone,
           password,
+          id_user_type: parseInt(userType), // envia o cargo para o backend
         }),
       })
 
@@ -68,7 +65,6 @@ export default function Register() {
         return
       }
 
-      // Registo com sucesso → redireciona para o login
       router.push('/login')
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
@@ -148,16 +144,30 @@ export default function Register() {
           />
         </div>
 
-        {/* NOVO: Número de Telefone */}
+        {/* Número de Telefone */}
         <div className="mb-5">
           <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Número de Telefone</label>
           <input
             type="tel"
             placeholder="912 345 678"
             value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))} // remove espaços automaticamente
+            onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)]"
           />
+        </div>
+
+        {/* Cargo */}
+        <div className="mb-5">
+          <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Cargo</label>
+          <select
+            value={userType}
+            onChange={(e) => setUserType(e.target.value)}
+            className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)] cursor-pointer"
+          >
+            {/* id=1 (Admin/Coordenação) não aparece aqui — é atribuído manualmente no Neon */}
+            <option value="2">Professor</option>
+            <option value="3">Encarregado de Educação</option>
+          </select>
         </div>
 
         {/* Palavra-passe */}

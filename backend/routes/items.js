@@ -1,11 +1,12 @@
 const express = require('express')
 const router = express.Router()
+const authorize = require('../middleware/authorize')
 const { createItem, readAllItems, readItemById, updateItem, deleteItem } = require('../controllers/itemsController')
 
-router.post('/', createItem)
-router.get('/', readAllItems)
-router.get('/:id', readItemById)
-router.put('/:id', updateItem)
-router.delete('/:id', deleteItem)
+router.post('/',     authorize(1),       createItem)         
+router.get('/',      authorize(1, 2, 3), readAllItems)        
+router.get('/:id',   authorize(1, 2, 3), readItemById)        
+router.put('/:id',   authorize(1),       updateItem)          
+router.delete('/:id',authorize(1),       deleteItem)          
 
 module.exports = router
