@@ -1,13 +1,21 @@
-// backend/controllers/authController.js
-
 const pool = require('../db')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
+
+// ─── TRANSPORTER (Nodemailer + Gmail) ────────────────────────────────────────
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS, // App Password, não a tua password normal
+  },
+})
 
 // ─── REGISTER ────────────────────────────────────────────────────────────────
 const register = async (req, res) => {
   try {
-    const { name, email, password, phone_number } = req.body // NOVO: phone_number
+    const { name, email, password, phone_number } = req.body
 
     // Verifica se o email já existe
     const existing = await pool.query(
@@ -85,7 +93,7 @@ const forgotPassword = async (req, res) => {
 
     // Verifica se o email existe na base de dados
     const result = await pool.query(
-      'SELECT id_user FROM users WHERE email = $1',
+      'SELECT id_user, name FROM users WHERE email = $1',
       [email]
     )
 
@@ -96,6 +104,7 @@ const forgotPassword = async (req, res) => {
     }
 
     const userId = result.rows[0].id_user
+    const userName = result.rows[0].name
 
     // Gera um token temporário de reset (expira em 15 minutos)
     const resetToken = jwt.sign(
@@ -104,12 +113,86 @@ const forgotPassword = async (req, res) => {
       { expiresIn: '15m' }
     )
 
-    // TODO: envia o email com o link de reset
-    // O link deve ser algo como: https://o-teu-site.com/reset-password?token=<resetToken>
-    // Para enviar emails podes usar o Resend (resend.com) ou o Nodemailer
-    console.log(`Link de reset para ${email}: ${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`)
+    // Constrói o link de reset que será enviado no email
+    const resetLink = `${process.env.FRONTEND_URL}/resetpassword?token=${resetToken}`
+
+    // Envia o email com Nodemailer
+    await transporter.sendMail({
+      from: `"EntArtes" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Recuperação de palavra-passe — EntArtes',
+      html: `
+        <div style="background-color: #f4f1f8; padding: 40px 20px; min-height: 100vh;">
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 40px 32px; box-shadow: 0 4px 24px rgba(74,58,99,0.10);">
+
+            <div style="text-align: center; margin-bottom: 24px;">
+              <span style="font-family: Georgia, serif; font-size: 22px; font-weight: 400; color: #4a3a63; letter-spacing: 0.08em;">
+                EntArtes
+              </span>
+              <p style="color: #9a9a9a; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin: 4px 0 0;">
+                Escola de Dança
+              </p>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #eeeeee; margin: 0 0 28px 0;" />
+
+            <h2 style="font-family: Georgia, serif; font-weight: 400; color: #1a1a1a; text-align: center; margin: 0 0 8px;">
+              Recuperar palavra-passe
+            </h2>
+            <p style="color: #7a7a7a; font-size: 14px; text-align: center; margin: 0 0 32px;">
+              Olá, ${userName}! Recebemos um pedido para repor a tua palavra-passe.
+            </p>
+
+            <div style="text-align: center; margin-bottom: 32px;">
+              <a href="${resetLink}"
+                 style="display: inline-block; padding: 14px 32px;
+                        background-color: #D4537E;
+                        color: #ffffff; text-decoration: none; border-radius: 6px;
+                        font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;">
+                Repor palavra-passe
+              </a>
+            </div>
+
+            <p style="color: #9a9a9a; font-size: 12px; text-align: center; margin: 0 0 24px;">
+              Este link expira em <strong>15 minutos</strong>.<br/>
+              Se não pediste a recuperação, podes ignorar este email.
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #eeeeee; margin: 0;" />
+          </div>
+        </div>
+      `
+    })
 
     res.status(200).json({ message: 'Se este email existir, receberás um link em breve.' })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}
+
+// ─── RESET PASSWORD ───────────────────────────────────────────────────────────
+const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body
+
+    // Verifica e descodifica o token
+    let decoded
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET)
+    } catch (err) {
+      return res.status(400).json({ error: 'Link inválido ou expirado.' })
+    }
+
+    // Encripta a nova password
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    // Atualiza na base de dados
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id_user = $2',
+      [hashedPassword, decoded.id]
+    )
+
+    res.status(200).json({ message: 'Palavra-passe atualizada com sucesso.' })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -122,4 +205,4 @@ const logout = async (req, res) => {
   res.status(200).json({ message: 'Sessão terminada com sucesso.' })
 }
 
-module.exports = { register, login, forgotPassword, logout }
+module.exports = { register, login, forgotPassword, resetPassword, logout }

@@ -1,6 +1,5 @@
+//COMPLETE CRUD HERE - CREATE, READ, UPDATE AND DELETE
 const pool = require('../db')
-
-// create user
 const createUser = async (req, res) => {
     try {
       const { name, email, phone_number, id_user_type } = req.body
@@ -14,7 +13,7 @@ const createUser = async (req, res) => {
     }
   }
 
-// read all users
+// lê todos os utilizadores
 const readAllUsers = async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM users')
@@ -24,7 +23,8 @@ const readAllUsers = async (req, res) => {
   }
 }
 
-// read a user by id
+
+// lê o utilizador pelo id
 const readUserById = async (req, res) => {
   try {
     const { id } = req.params
@@ -35,7 +35,7 @@ const readUserById = async (req, res) => {
   }
 }
 
-// update user
+// atualiza o utilizador pelo id
 const updateUser = async (req, res) => {
     try{
       const { id } = req.params
@@ -50,7 +50,8 @@ const updateUser = async (req, res) => {
     }
   }
 
-// delete user
+
+// elimina o utilizador pelo id
 const deleteUser = async (req, res) => {
     try {
         const { id } = req.params

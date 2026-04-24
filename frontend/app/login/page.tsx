@@ -1,19 +1,15 @@
-// frontend/app/login/page.tsx
-
-'use client' // necessário para useState e eventos
+'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation' // para redirecionar após login
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Login() {
   const router = useRouter()
 
-  // Estado dos campos do formulário
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
-  // Estado de feedback para o utilizador
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -22,24 +18,20 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Chama o backend Express em POST /api/auth/login
-      // Muda a URL se o teu backend correr noutra porta (ex: 3001)
       const res = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // necessário para enviar/receber cookies
+        credentials: 'include',
         body: JSON.stringify({ email, password }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        // Mostra o erro devolvido pelo backend (ex: "Email ou palavra-passe incorretos.")
         setError(data.error || 'Ocorreu um erro. Tenta novamente.')
         return
       }
 
-      // Login com sucesso → redireciona para o dashboard
       router.push('/dashboard')
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
@@ -67,14 +59,24 @@ export default function Login() {
 
       {/* Logo */}
       <div className="text-center -mt-16 mb-0.5 relative z-10">
-        <img src="/Logo.png" className="mx-auto block drop-shadow-[0px_4px_10px_rgba(0,0,0,0.05)]" width={380} height={380} alt="EntArtes Logo" />
+        <Image
+          src="/Logo.png"
+          className="mx-auto block drop-shadow-[0px_4px_10px_rgba(0,0,0,0.05)]"
+          width={380}
+          height={380}
+          alt="EntArtes Logo"
+        />
       </div>
 
       {/* Card */}
       <div className="relative z-10 w-[90%] max-w-[360px] bg-white shadow-[0_20px_40px_rgba(0,0,0,0.04)] border border-[#f0f0f0] rounded-xl px-8 py-10">
 
-        <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">Bem-vindo/a</h2>
-        <p className="text-[13px] text-[#7a7a7a] mb-8">Acede à tua conta para continuar</p>
+        <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">
+          Bem-vindo/a
+        </h2>
+        <p className="text-[13px] text-[#7a7a7a] mb-8">
+          Acede à tua conta para continuar
+        </p>
 
         {/* Mensagem de erro vinda do backend */}
         {error && (
@@ -83,19 +85,19 @@ export default function Login() {
           </div>
         )}
 
-        {/* Email — controlado por useState */}
+        {/* Email */}
         <div className="mb-5">
           <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Email</label>
           <input
             type="email"
             placeholder="o.teu@email.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)} // atualiza o estado a cada tecla
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)]"
           />
         </div>
 
-        {/* Palavra-passe — controlado por useState */}
+        {/* Palavra-passe */}
         <div className="mb-1.5">
           <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Palavra-passe</label>
           <input
@@ -111,10 +113,9 @@ export default function Login() {
           Esqueceste a palavra-passe?
         </Link>
 
-        {/* Botão que chama handleLogin */}
         <button
           onClick={handleLogin}
-          disabled={loading} // desativa enquanto aguarda resposta
+          disabled={loading}
           className="w-full py-3.5 mt-6 bg-gradient-to-br from-[#4a3a63] to-[#2d233c] border-none rounded-md text-white text-[11px] tracking-[0.2em] uppercase cursor-pointer transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_5px_15px_rgba(0,0,0,0.1)] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
           {loading ? 'A entrar...' : 'Entrar'}

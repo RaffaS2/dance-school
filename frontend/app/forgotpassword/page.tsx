@@ -20,7 +20,6 @@ export default function ForgotPassword() {
     setLoading(true)
 
     try {
-      // Chama o backend Express em POST /api/auth/forgot-password
       const res = await fetch('http://localhost:3001/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -34,8 +33,6 @@ export default function ForgotPassword() {
         return
       }
 
-      // Mostra o popup de sucesso independentemente de o email existir ou não
-      // (o backend responde sempre com 200 por razões de segurança)
       setPopupVisible(true)
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
@@ -96,6 +93,7 @@ export default function ForgotPassword() {
             placeholder="o.teu@email.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)]"
           />
         </div>
@@ -142,10 +140,11 @@ export default function ForgotPassword() {
 
             <p className="text-[12px] text-[#9a9a9a] mb-1">Não recebeste nada?</p>
             <button
-              onClick={() => setPopupVisible(false)}
-              className="text-[12px] text-[#D4537E] hover:underline bg-transparent border-none cursor-pointer p-0 mb-7"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="text-[12px] text-[#D4537E] hover:underline bg-transparent border-none cursor-pointer p-0 mb-7 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Reenviar email
+              {loading ? 'A enviar...' : 'Reenviar email'}
             </button>
 
             <Link

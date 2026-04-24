@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 async function getData() {
@@ -18,8 +19,15 @@ export default async function HomePage() {
       {/* Navbar */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow">
         <div className="flex items-center">
-          <img src="/logo.png" alt="Ent'Artes Logo" className="h-12 object-contain" />
+          <Image
+            src="/logo.png"
+            alt="Ent'Artes Logo"
+            width={144}
+            height={48}
+            className="h-12 w-auto object-contain"
+          />
         </div>
+
         <nav className="flex gap-3">
           <Link href="/login">
             <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
@@ -36,11 +44,22 @@ export default async function HomePage() {
 
       {/* Hero */}
       <section className="flex flex-col items-center justify-center flex-1 text-center px-6 py-12">
-        <img src="/logo.png" alt="Ent'Artes Logo" className="w-72 max-w-full mb-6" />
-        <h2 className="text-3xl font-semibold mb-2">Bem-vindo à Ent'Artes</h2>
+        <Image
+          src="/logo.png"
+          alt="Ent'Artes Logo"
+          width={288}
+          height={288}
+          className="w-72 max-w-full mb-6 h-auto"
+        />
+
+        <h2 className="text-3xl font-semibold mb-2">
+          Bem-vindo à Ent&apos;Artes
+        </h2>
+
         <p className="text-gray-600 mb-6 max-w-md">
           Escola de dança dedicada ao desenvolvimento artístico e pessoal.
         </p>
+
         <Link href="/dashboard">
           <button className="bg-gray-500 text-white px-6 py-3 rounded-xl text-lg hover:bg-gray-600">
             Entrar
@@ -73,7 +92,7 @@ export default async function HomePage() {
 
       {/* Footer */}
       <footer className="text-center py-4 text-gray-500">
-        © {new Date().getFullYear()} Ent'Artes
+        © {new Date().getFullYear()} Ent&apos;Artes
       </footer>
     </div>
   );
