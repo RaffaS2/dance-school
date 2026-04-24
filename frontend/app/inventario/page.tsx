@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
 type ItemStatusFilter = "todos" | "disponivel" | "em-uso" | "sem-stock";
@@ -91,7 +93,6 @@ export default function InventoryPage() {
 	const [novaCategoria, setNovaCategoria] = useState("");
 	const [novaDescricao, setNovaDescricao] = useState("");
 	const [novaQuantidade, setNovaQuantidade] = useState("1");
-	const [temaEscuroAtivo, setTemaEscuroAtivo] = useState(false);
 
 	const categorias = useMemo(() => {
 		const todas = itens.map((item) => item.categoria);
@@ -200,88 +201,70 @@ export default function InventoryPage() {
 	}
 
 	return (
-		<div
-			className={`min-h-screen text-zinc-900 ${
-				temaEscuroAtivo
-					? "inventario-dark bg-[radial-gradient(circle_at_top_right,_#3b3f48_0%,_#2f3136_42%,_#232428_100%)]"
-					: "bg-[radial-gradient(circle_at_top_right,_#f8d9a0_0%,_#f6ecd7_36%,_#f8f4ea_100%)]"
-			}`}
-		>
-			<button
-				type="button"
-				onClick={() => setTemaEscuroAtivo((atual) => !atual)}
-				aria-label="Alternar tema claro/escuro do inventário"
-				title="Alternar tema do inventário"
-				className="fixed right-4 top-4 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-400/40 bg-white/90 text-zinc-900 shadow-lg backdrop-blur transition hover:scale-[1.03] hover:bg-white"
-			>
-				{temaEscuroAtivo ? (
-					<svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-						<path
-							d="M12 4.5a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V5.5a1 1 0 0 1 1-1Zm0 12.5a1 1 0 0 1 1 1v1.5a1 1 0 1 1-2 0V18a1 1 0 0 1 1-1Zm7.5-6a1 1 0 0 1 1 1 1 1 0 0 1-1 1H18a1 1 0 1 1 0-2h1.5Zm-13.5 0a1 1 0 1 1 0 2H4.5a1 1 0 1 1 0-2H6Zm10.607-4.607a1 1 0 0 1 1.414 0l1.06 1.06a1 1 0 1 1-1.414 1.414l-1.06-1.06a1 1 0 0 1 0-1.414ZM5.919 17.02a1 1 0 0 1 1.414 0l1.06 1.06a1 1 0 1 1-1.414 1.414l-1.06-1.06a1 1 0 0 1 0-1.414Zm12.162 2.474a1 1 0 0 1-1.414 0l-1.06-1.06a1 1 0 1 1 1.414-1.414l1.06 1.06a1 1 0 0 1 0 1.414ZM7.393 7.393a1 1 0 0 1-1.414 0l-1.06-1.06A1 1 0 1 1 6.333 4.92l1.06 1.06a1 1 0 0 1 0 1.414ZM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"
-							fill="currentColor"
+		<div className="min-h-screen bg-gray-100 text-zinc-900">
+			<header className="mb-6 bg-white px-6 py-4 shadow">
+				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
+					<div className="flex items-center gap-4">
+						<Image
+							src="/logo.png"
+							alt="Ent'Artes Logo"
+							width={144}
+							height={48}
+							className="h-12 w-auto object-contain"
 						/>
-					</svg>
-				) : (
-					<svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-						<path
-							d="M14.5 3a1 1 0 0 1 .94 1.34 8 8 0 1 0 10.22 10.22 1 1 0 0 1 1.34.94A10 10 0 1 1 14.5 3Z"
-							fill="currentColor"
-						/>
-					</svg>
-				)}
-			</button>
-			<div className="mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
-				<header className="fade-in rounded-3xl border border-zinc-900/10 bg-white/80 p-5 shadow-[0_16px_40px_rgba(52,44,28,0.1)] backdrop-blur md:p-8">
-					<p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500">Escola de Danca</p>
-					<div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
 						<div>
-							<h1 className="text-3xl font-bold tracking-tight md:text-5xl">Inventário</h1>
-							<p className="mt-2 max-w-2xl text-sm text-zinc-600 md:text-base">
-								Consulte, requisite e devolva itens para as aulas. Novos materiais podem ser adicionados
-								pelos utilizadores quando a escola adquirir mais recursos.
-							</p>
-						</div>
-						<div className="rounded-2xl bg-zinc-900 px-4 py-3 text-sm text-white">
-							<p className="opacity-70">Utilizador atual</p>
-							<p className="text-base font-semibold">{utilizadorAtual}</p>
+							<h1 className="text-xl font-bold">Inventário</h1>
+							<p className="text-sm text-gray-600">Utilizador atual: {utilizadorAtual}</p>
 						</div>
 					</div>
-				</header>
 
-				<section className="mt-6 grid gap-4 md:grid-cols-[1.25fr_1fr]">
-					<div className="fade-in rounded-3xl border border-orange-200 bg-orange-50 p-5 md:p-6">
-						<h2 className="text-lg font-bold md:text-xl">Minhas Requisições Ativas</h2>
-						<p className="mt-1 text-sm text-zinc-600">
+					<div className="flex gap-3">
+						<Link href="/">
+							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
+								Página Inicial
+							</button>
+						</Link>
+						<Link href="/coaching">
+							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
+								Coachings
+							</button>
+						</Link>
+					</div>
+				</div>
+			</header>
+
+			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
+				<section className="grid gap-4 md:grid-cols-2">
+					<div className="rounded-xl bg-white p-5 shadow">
+						<h2 className="text-lg font-semibold">Minhas Requisições Ativas</h2>
+						<p className="mt-1 text-sm text-gray-600">
 							Tem <strong>{requisicoesAtivas.length}</strong> item(ns) em uso.
 						</p>
 
 						<div className="mt-4 space-y-3">
 							{requisicoesAtivas.length === 0 && (
-								<div className="rounded-2xl border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-600">
+								<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
 									Sem itens ativos no momento.
 								</div>
 							)}
 
 							{requisicoesAtivas.map((item) => (
-								<article key={item.id} className="rounded-2xl bg-white p-4 shadow-sm">
+								<article key={item.id} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
 									<div className="flex items-start justify-between gap-3">
 										<div>
 											<h3 className="font-semibold">{item.nome}</h3>
-											<p className="mt-1 text-xs text-zinc-500">Em uso desde: {requisicoesUtilizador[item.id]}</p>
+											<p className="mt-1 text-xs text-gray-500">Em uso desde: {requisicoesUtilizador[item.id]}</p>
 										</div>
-										<span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white">Em Uso</span>
+										<span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-white">Em Uso</span>
 									</div>
 								</article>
 							))}
 						</div>
 					</div>
 
-					<form
-						onSubmit={adicionarNovoItem}
-						className="fade-in rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-sm md:p-6"
-					>
-						<h2 className="text-lg font-bold md:text-xl">Adicionar Novo Item</h2>
-						<p className="mt-1 text-sm text-zinc-600">
+					<form onSubmit={adicionarNovoItem} className="rounded-xl bg-white p-5 shadow">
+						<h2 className="text-lg font-semibold">Adicionar Novo Item</h2>
+						<p className="mt-1 text-sm text-gray-600">
 							Itens adicionados aqui podem ser removidos se não estiverem em uso.
 						</p>
 
@@ -290,53 +273,53 @@ export default function InventoryPage() {
 								value={novoNome}
 								onChange={(e) => setNovoNome(e.target.value)}
 								placeholder="Nome do item"
-								className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
 							<input
 								value={novaCategoria}
 								onChange={(e) => setNovaCategoria(e.target.value)}
 								placeholder="Categoria (ex: Material Didático)"
-								className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
 							<textarea
 								value={novaDescricao}
 								onChange={(e) => setNovaDescricao(e.target.value)}
 								placeholder="Descrição curta"
 								rows={3}
-								className="w-full resize-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+								className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
 							<input
 								type="number"
 								min={1}
 								value={novaQuantidade}
 								onChange={(e) => setNovaQuantidade(e.target.value)}
-								className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
 						</div>
 
 						<button
 							type="submit"
-							className="mt-4 w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-orange-600"
+							className="mt-4 w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
 						>
 							Guardar Item
 						</button>
 					</form>
 				</section>
 
-				<section className="fade-in mt-6 rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-sm md:p-6">
-					<h2 className="text-lg font-bold md:text-xl">Filtros</h2>
+				<section className="rounded-xl bg-white p-5 shadow">
+					<h2 className="text-lg font-semibold">Filtros</h2>
 					<div className="mt-3 grid gap-3 md:grid-cols-3">
 						<input
 							value={pesquisa}
 							onChange={(e) => setPesquisa(e.target.value)}
 							placeholder="Pesquisar itens"
-							className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 						/>
 
 						<select
 							value={filtroCategoria}
 							onChange={(e) => setFiltroCategoria(e.target.value)}
-							className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 						>
 							<option value="todas">Todas as Categorias</option>
 							{categorias.map((categoria) => (
@@ -349,7 +332,7 @@ export default function InventoryPage() {
 						<select
 							value={filtroEstado}
 							onChange={(e) => setFiltroEstado(e.target.value as ItemStatusFilter)}
-							className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm outline-none transition focus:border-orange-300 focus:bg-white"
+							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 						>
 							<option value="todos">Todos os Estados</option>
 							<option value="disponivel">Disponível</option>
@@ -359,26 +342,22 @@ export default function InventoryPage() {
 					</div>
 				</section>
 
-				<section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-					{itensFiltrados.map((item, indice) => {
+				<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+					{itensFiltrados.map((item) => {
 						const emPosseDoUtilizador = Boolean(requisicoesUtilizador[item.id]);
 						const estado = estadoDoItem(item, emPosseDoUtilizador);
 						const disponiveis = item.total - item.emUso;
 
 						return (
-							<article
-								key={item.id}
-								style={{ animationDelay: `${indice * 0.06}s` }}
-								className="stagger-up rounded-3xl border border-zinc-900/10 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-							>
-								<div className="mb-4 flex items-center justify-between">
-									<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-sm font-bold tracking-wider text-white">
+							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+								<div className="mb-3 flex items-center justify-between">
+									<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-xs font-bold text-white">
 										{item.visual}
 									</div>
 									<span
 										className={`rounded-full px-3 py-1 text-xs font-semibold ${
 											estado === "Disponível"
-												? "bg-emerald-100 text-emerald-700"
+												? "bg-green-100 text-green-700"
 												: estado === "Em Uso"
 													? "bg-amber-100 text-amber-700"
 													: "bg-rose-100 text-rose-700"
@@ -389,20 +368,20 @@ export default function InventoryPage() {
 								</div>
 
 								<h3 className="text-base font-semibold">{item.nome}</h3>
-								<p className="mt-2 text-sm text-zinc-600">{item.descricao}</p>
-								<p className="mt-3 text-xs font-medium uppercase tracking-wide text-zinc-500">{item.categoria}</p>
-								<p className="mt-1 text-xs text-zinc-500">
-									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
-								</p>
-								<p className="mt-1 text-xs text-zinc-500">
+								<p className="mt-2 text-sm text-gray-600">{item.descricao}</p>
+								<p className="mt-2 text-xs text-gray-500">Categoria: {item.categoria}</p>
+								<p className="mt-1 text-xs text-gray-500">
 									Disponíveis: <strong>{Math.max(0, disponiveis)}</strong> / {item.total}
+								</p>
+								<p className="mt-1 text-xs text-gray-500">
+									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
 								</p>
 
 								<div className="mt-4 grid gap-2">
 									{emPosseDoUtilizador ? (
 										<button
 											onClick={() => devolverItem(item)}
-											className="w-full rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700"
+											className="w-full rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
 										>
 											Devolver Item
 										</button>
@@ -410,7 +389,7 @@ export default function InventoryPage() {
 										<button
 											onClick={() => requisitarItem(item)}
 											disabled={disponiveis <= 0}
-											className="w-full rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition enabled:hover:bg-orange-600 disabled:cursor-not-allowed disabled:bg-zinc-300"
+											className="w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300 hover:enabled:bg-gray-600"
 										>
 											Requisitar Item
 										</button>
@@ -420,7 +399,7 @@ export default function InventoryPage() {
 										<button
 											onClick={() => removerItem(item)}
 											disabled={item.emUso > 0 || Boolean(requisicoesUtilizador[item.id])}
-											className="w-full rounded-xl border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-400"
+											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
 										>
 											Remover Item
 										</button>
