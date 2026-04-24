@@ -1,7 +1,7 @@
 // CRUD COMPLETO - CREATE, READ, UPDATE E DELETE
 
 const pool = require('../db')
- 
+
 const createUser = async (req, res) => {
     try {
       const { name, email, phone_number, id_user_type } = req.body

@@ -1,19 +1,21 @@
-import NovoCoachingForm from "./NovoCoachingForm";
+import NovaDisponibilidadeForm from "./NovaDisponibilidadeForm";
 import Link from "next/link";
 
-async function getData() {
-  const [prof, alunos, mods, est] = await Promise.all([
-    fetch("http://localhost:3001/professors", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/students", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/modalities", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/studios", { cache: "no-store" }).then(r => r.json()),
-  ]);
+async function getProfessores() {
+  try {
+    const res = await fetch("http://localhost:3001/professors", {
+      cache: "no-store",
+    });
 
-  return { prof, alunos, mods, est };
+    return res.json();
+  } catch (error) {
+    console.error("Erro ao buscar professores:", error);
+    return [];
+  }
 }
 
 export default async function Page() {
-  const data = await getData();
+  const professores = await getProfessores();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -26,10 +28,10 @@ export default async function Page() {
             alt="Ent'Artes Logo"
             className="h-10 object-contain"
           />
-          <h1 className="text-xl font-bold">Requisitar Coaching</h1>
+          <h1 className="text-xl font-bold">Nova Disponibilidade</h1>
         </div>
 
-        <Link href="/coaching">
+        <Link href="/availabilities">
           <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
             Voltar
           </button>
@@ -38,7 +40,7 @@ export default async function Page() {
 
       {/* Conteúdo */}
       <div className="flex justify-center p-6">
-        <NovoCoachingForm {...data} />
+        <NovaDisponibilidadeForm professores={professores} />
       </div>
     </div>
   );
