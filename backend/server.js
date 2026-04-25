@@ -1,34 +1,24 @@
 require('dotenv').config() // carrega as variáveis do .env (JWT_SECRET, DATABASE_URL, etc)
- 
+
 const express = require('express')
-const app = express() //cria a app
+const app = express() // cria a app
 const pool = require('./db')
- 
-const cors = require('cors') //permite que o backend num dominio diferente acesse o frontend
-const cookieParser = require('cookie-parser') //"middleman" que ajuda o express a ler os cookies
-const authRoutes = require('./routes/auth') // importa as routes da parte de autenticação
- 
-// ─── 1. MIDDLEWARES (têm de vir ANTES das rotas) ─────────────────────────────
- 
-app.use(express.json()) //permite que o SV leia JSON no corpo dos pedidos
- 
-app.use(cookieParser()) //prepara o server para ler os cookies que o browser envia
- 
-app.use(cors({ //permissão para o back falar com o front
+const cors = require('cors') // permite que o backend num dominio diferente acesse o frontend
+const cookieParser = require('cookie-parser') // "middleman" que ajuda o express a ler os cookies
+
+app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
+app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
+app.use(cors({ // permissão para o back falar com o front
   origin: 'http://localhost:3000', // URL do frontend
   credentials: true               // true para enviar os cookies
 }))
- 
-// ─── 2. ROTAS ─────────────────────────────────────────────────────────────────
- 
-app.get('/', (req, res) =>{ // cria uma rota GET que devolve uma msg
-    res.json({ message: 'hello backend'})
+
+app.get('/', (req, res) => { // cria uma rota GET que devolve uma msg
+  res.json({ message: 'hello backend' })
 })
- 
-app.use('/', require('./routes/index'))
- 
-app.use('/api/auth', authRoutes) // rotas de autenticação
- 
+
+app.use('/', require('./routes/index')) // todas as rotas centralizadas aqui
+
 // Rota GET para testar a ligação à base de dados
 app.get('/test-db', async (req, res) => {
   try {
@@ -38,9 +28,7 @@ app.get('/test-db', async (req, res) => {
     res.json({ connected: false, error: error.message })
   }
 })
- 
-// ─── 3. LISTEN (sempre por último) ───────────────────────────────────────────
- 
-app.listen(3001, () => { //sv corre na porta 3001, porque o frontend ta a usar 3000
-    console.log('running server on port 3001')
+
+app.listen(3001, () => { // sv corre na porta 3001, porque o frontend ta a usar 3000
+  console.log('running server on port 3001')
 })
