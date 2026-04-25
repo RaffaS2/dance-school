@@ -19,9 +19,24 @@ const createCoaching = async (req, res) => {
 // lê todos os coachings
 const readAllCoachings = async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM coachings')
+        const result = await pool.query(`
+            SELECT 
+                c.id_coaching,
+                u.name AS professor,
+                c.date,
+                c.start_time,
+                c.duration_minutes,
+                c.status,
+                c.price
+            FROM coachings c
+            LEFT JOIN professors p ON c.id_professor = p.id_professor
+            LEFT JOIN users u ON p.id_user = u.id_user
+            ORDER BY c.date, c.start_time
+        `)
+
         res.json(result.rows)
     } catch (error) {
+        console.error("ERRO:", error)
         res.status(500).json({ error: error.message })
     }
 }
