@@ -17,7 +17,7 @@ app.get('/', (req, res) => { // cria uma rota GET que devolve uma msg
   res.json({ message: 'hello backend' })
 })
 
-app.use('/', require('./routes/index')) // todas as rotas centralizadas aqui
+app.use('/api', require('./routes/index')) // todas as rotas centralizadas aqui
 
 // Rota GET para testar a ligação à base de dados
 app.get('/test-db', async (req, res) => {

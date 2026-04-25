@@ -1,208 +1,302 @@
-const pool = require('../db')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
+const { Pool } = require('pg')
 
-// ─── TRANSPORTER (Nodemailer + Gmail) ────────────────────────────────────────
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS, // App Password, não a tua password normal
+    pass: process.env.EMAIL_PASS,
   },
 })
 
 // ─── REGISTER ────────────────────────────────────────────────────────────────
-const register = async (req, res) => {
-  try {
-    const { name, email, password, phone_number } = req.body
+exports.register = async (req, res) => {
+  const { name, email, phone, password, id_user_type } = req.body
 
-    // Verifica se o email já existe
-    const existing = await pool.query(
-      'SELECT id_user FROM users WHERE email = $1',
-      [email]
+  if (!name || !email || !password || !id_user_type) {
+    return res.status(400).json({ error: 'Preenche todos os campos obrigatórios.' })
+  }
+
+  try {
+    const password_hash = await bcrypt.hash(password, 10)
+
+    // ── Professor → registo pendente ─────────────────────────────────────────
+    if (parseInt(id_user_type) === 2) {
+      const existing = await pool.query(
+        'SELECT id FROM pending_teachers WHERE email = $1', [email]
+      )
+      const existingUser = await pool.query(
+        'SELECT id_user FROM users WHERE email = $1', [email]
+      )
+
+      if (existing.rows.length > 0 || existingUser.rows.length > 0) {
+        return res.status(409).json({ error: 'Este email já está registado ou tem um pedido pendente.' })
+      }
+
+      // Token de aprovação válido 48h
+      const approval_token = jwt.sign(
+        { email, name, phone, password_hash },
+        process.env.JWT_SECRET,
+        { expiresIn: '48h' }
+      )
+
+      await pool.query(
+        `INSERT INTO pending_teachers (name, email, phone, password, approval_token)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [name, email, phone, password_hash, approval_token]
+      )
+
+      // Email para a coordenação
+      const approveUrl = `${process.env.FRONTEND_URL}/approvedteacher?token=${approval_token}`
+
+      await transporter.sendMail({
+        from: `"EntArtes" <${process.env.EMAIL_USER}>`,
+        to: process.env.COORDINATOR_EMAIL,
+        subject: 'Novo pedido de conta — Professor',
+        html: `
+          <h2>Pedido de registo como Professor</h2>
+          <p><strong>Nome:</strong> ${name}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Telefone:</strong> ${phone || 'Não fornecido'}</p>
+          <br/>
+          <p>Para aprovar esta conta, clica no botão abaixo:</p>
+          <a href="${approveUrl}" style="
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #4F46E5;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+          ">Aprovar Professor</a>
+          <br/><br/>
+          <p style="color: #888; font-size: 12px;">Este link expira em 48 horas.</p>
+        `,
+      })
+
+      return res.status(200).json({
+        message: 'Pedido enviado. A coordenação irá analisar o teu registo.',
+        pending: true,
+      })
+    }
+
+    // ── Encarregado → registo imediato ───────────────────────────────────────
+    const existingUser = await pool.query(
+      'SELECT id_user FROM users WHERE email = $1', [email]
     )
-    if (existing.rows.length > 0) {
+    if (existingUser.rows.length > 0) {
       return res.status(409).json({ error: 'Este email já está registado.' })
     }
 
-    // Encripta a password com bcrypt (10 rounds)
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Insere o novo utilizador com phone_number (id_user_type = 1 → utilizador normal por defeito)
     const result = await pool.query(
-      'INSERT INTO users (name, email, password, phone_number, id_user_type) VALUES ($1, $2, $3, $4, $5) RETURNING id_user, name, email, phone_number',
-      [name, email, hashedPassword, phone_number, 1]
+      `INSERT INTO users (name, email, phone_number, password, id_user_type)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id_user`,
+      [name, email, phone, password_hash, id_user_type]
     )
 
-    res.status(201).json({ user: result.rows[0] })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+    return res.status(201).json({ message: 'Conta criada com sucesso!', userId: result.rows[0].id_user })
+
+  } catch (err) {
+    console.error('Erro no register:', err)
+    res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
-const login = async (req, res) => {
-  try {
-    const { email, password } = req.body
+// ─── LOGIN ───────────────────────────────────────────────────────────────────
+exports.login = async (req, res) => {
+  const { email, password } = req.body
 
-    // Procura o utilizador pelo email
-    const result = await pool.query(
-      'SELECT * FROM users WHERE email = $1',
-      [email]
-    )
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email e password são obrigatórios.' })
+  }
+
+  try {
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email])
+
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' })
+      return res.status(401).json({ error: 'Credenciais inválidas.' })
     }
 
     const user = result.rows[0]
+    const valid = await bcrypt.compare(password, user.password)
 
-    // Compara a password introduzida com o hash guardado na base de dados
-    const passwordMatch = await bcrypt.compare(password, user.password)
-    if (!passwordMatch) {
-      return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' })
+    if (!valid) {
+      return res.status(401).json({ error: 'Credenciais inválidas.' })
     }
 
-    // Gera o JWT com os dados do utilizador (expira em 7 dias)
     const token = jwt.sign(
-      { id: user.id_user, email: user.email, type: user.id_user_type },
+      { id: user.id_user, id_user_type: user.id_user_type },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     )
 
-    // Envia o token num cookie httpOnly (mais seguro que localStorage)
     res.cookie('token', token, {
-      httpOnly: true,   // não acessível via JavaScript no browser
-      secure: process.env.NODE_ENV === 'production', // só HTTPS em produção
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias em milissegundos
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
-    res.status(200).json({
-      user: { id: user.id_user, name: user.name, email: user.email }
-    })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+    return res.status(200).json({ message: 'Login com sucesso!', id_user_type: user.id_user_type })
+
+  } catch (err) {
+    console.error('Erro no login:', err)
+    res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
 
-// ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────
-const forgotPassword = async (req, res) => {
+// ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email é obrigatório.' })
+  }
+
   try {
-    const { email } = req.body
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email])
 
-    // Verifica se o email existe na base de dados
-    const result = await pool.query(
-      'SELECT id_user, name FROM users WHERE email = $1',
-      [email]
-    )
-
-    // Responde sempre com sucesso para não revelar se o email existe ou não
-    // (boa prática de segurança)
     if (result.rows.length === 0) {
-      return res.status(200).json({ message: 'Se este email existir, receberás um link em breve.' })
+      return res.status(200).json({ message: 'Se o email existir, receberás um link de reset.' })
     }
 
-    const userId = result.rows[0].id_user
-    const userName = result.rows[0].name
+    const user = result.rows[0]
+    const token = jwt.sign({ id: user.id_user }, process.env.JWT_SECRET, { expiresIn: '15m' })
+    const resetUrl = `${process.env.FRONTEND_URL}/resetpassword?token=${token}`
 
-    // Gera um token temporário de reset (expira em 15 minutos)
-    const resetToken = jwt.sign(
-      { id: userId },
-      process.env.JWT_SECRET,
-      { expiresIn: '15m' }
-    )
-
-    // Constrói o link de reset que será enviado no email
-    const resetLink = `${process.env.FRONTEND_URL}/resetpassword?token=${resetToken}`
-
-    // Envia o email com Nodemailer
     await transporter.sendMail({
       from: `"EntArtes" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Recuperação de palavra-passe — EntArtes',
+      subject: 'Reset de Password — EntArtes',
       html: `
-        <div style="background-color: #f4f1f8; padding: 40px 20px; min-height: 100vh;">
-          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; padding: 40px 32px; box-shadow: 0 4px 24px rgba(74,58,99,0.10);">
-
-            <div style="text-align: center; margin-bottom: 24px;">
-              <span style="font-family: Georgia, serif; font-size: 22px; font-weight: 400; color: #4a3a63; letter-spacing: 0.08em;">
-                EntArtes
-              </span>
-              <p style="color: #9a9a9a; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin: 4px 0 0;">
-                Escola de Dança
-              </p>
-            </div>
-
-            <hr style="border: none; border-top: 1px solid #eeeeee; margin: 0 0 28px 0;" />
-
-            <h2 style="font-family: Georgia, serif; font-weight: 400; color: #1a1a1a; text-align: center; margin: 0 0 8px;">
-              Recuperar palavra-passe
-            </h2>
-            <p style="color: #7a7a7a; font-size: 14px; text-align: center; margin: 0 0 32px;">
-              Olá, ${userName}! Recebemos um pedido para repor a tua palavra-passe.
-            </p>
-
-            <div style="text-align: center; margin-bottom: 32px;">
-              <a href="${resetLink}"
-                 style="display: inline-block; padding: 14px 32px;
-                        background-color: #D4537E;
-                        color: #ffffff; text-decoration: none; border-radius: 6px;
-                        font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;">
-                Repor palavra-passe
-              </a>
-            </div>
-
-            <p style="color: #9a9a9a; font-size: 12px; text-align: center; margin: 0 0 24px;">
-              Este link expira em <strong>15 minutos</strong>.<br/>
-              Se não pediste a recuperação, podes ignorar este email.
-            </p>
-
-            <hr style="border: none; border-top: 1px solid #eeeeee; margin: 0;" />
-          </div>
-        </div>
-      `
+        <h2>Reset de Password</h2>
+        <p>Clica no link abaixo para redefinir a tua password. O link expira em 15 minutos.</p>
+        <a href="${resetUrl}" style="
+          display: inline-block;
+          padding: 12px 24px;
+          background-color: #4F46E5;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: bold;
+        ">Redefinir Password</a>
+      `,
     })
 
-    res.status(200).json({ message: 'Se este email existir, receberás um link em breve.' })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+    return res.status(200).json({ message: 'Se o email existir, receberás um link de reset.' })
+
+  } catch (err) {
+    console.error('Erro no forgotPassword:', err)
+    res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
 
-// ─── RESET PASSWORD ───────────────────────────────────────────────────────────
-const resetPassword = async (req, res) => {
-  try {
-    const { token, password } = req.body
+// ─── RESET PASSWORD ──────────────────────────────────────────────────────────
+exports.resetPassword = async (req, res) => {
+  const { token, password } = req.body
 
-    // Verifica e descodifica o token
+  if (!token || !password) {
+    return res.status(400).json({ error: 'Token e nova password são obrigatórios.' })
+  }
+
+  try {
     let decoded
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET)
-    } catch (err) {
+    } catch {
       return res.status(400).json({ error: 'Link inválido ou expirado.' })
     }
 
-    // Encripta a nova password
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const password_hash = await bcrypt.hash(password, 10)
+    await pool.query('UPDATE users SET password = $1 WHERE id_user = $2', [password_hash, decoded.id])
 
-    // Atualiza na base de dados
-    await pool.query(
-      'UPDATE users SET password = $1 WHERE id_user = $2',
-      [hashedPassword, decoded.id]
-    )
+    return res.status(200).json({ message: 'Password atualizada com sucesso!' })
 
-    res.status(200).json({ message: 'Palavra-passe atualizada com sucesso.' })
-  } catch (error) {
-    res.status(500).json({ error: error.message })
+  } catch (err) {
+    console.error('Erro no resetPassword:', err)
+    res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
 
-// ─── LOGOUT ───────────────────────────────────────────────────────────────────
-const logout = async (req, res) => {
-  // Limpa o cookie do token
+// ─── LOGOUT ──────────────────────────────────────────────────────────────────
+exports.logout = (req, res) => {
   res.clearCookie('token')
-  res.status(200).json({ message: 'Sessão terminada com sucesso.' })
+  return res.status(200).json({ message: 'Logout com sucesso.' })
 }
 
-module.exports = { register, login, forgotPassword, resetPassword, logout }
+// ─── APPROVE TEACHER ─────────────────────────────────────────────────────────
+exports.approveTeacher = async (req, res) => {
+  const { token } = req.query
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token em falta.' })
+  }
+
+  try {
+    let decoded
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET)
+    } catch {
+      return res.status(400).json({ error: 'Link inválido ou expirado.' })
+    }
+
+    const pending = await pool.query(
+      'SELECT * FROM pending_teachers WHERE approval_token = $1', [token]
+    )
+
+    if (pending.rows.length === 0) {
+      return res.status(404).json({ error: 'Pedido não encontrado ou já aprovado.' })
+    }
+
+    const { name, email, phone, password } = pending.rows[0]
+
+    const existingUser = await pool.query(
+      'SELECT id_user FROM users WHERE email = $1', [email]
+    )
+    if (existingUser.rows.length > 0) {
+      await pool.query('DELETE FROM pending_teachers WHERE approval_token = $1', [token])
+      return res.status(409).json({ error: 'Este utilizador já tem uma conta ativa.' })
+    }
+
+    // Criar conta na tabela users como Professor (id_user_type = 2)
+    await pool.query(
+      `INSERT INTO users (name, email, phone_number, password, id_user_type)
+       VALUES ($1, $2, $3, $4, 2)`,
+      [name, email, phone, password]
+    )
+
+    // Remover da tabela de pendentes
+    await pool.query('DELETE FROM pending_teachers WHERE approval_token = $1', [token])
+
+    // Email de confirmação ao professor
+    await transporter.sendMail({
+      from: `"EntArtes" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Conta aprovada — EntArtes',
+      html: `
+        <h2>Olá, ${name}! </h2>
+        <p>A tua conta de <strong>Professor</strong> na EntArtes foi aprovada pela coordenação.</p>
+        <p>Já podes fazer login:</p>
+        <a href="${process.env.FRONTEND_URL}/login" style="
+          display: inline-block;
+          padding: 12px 24px;
+          background-color: #4F46E5;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: bold;
+        ">Fazer Login</a>
+      `,
+    })
+
+    return res.status(200).json({ message: 'Professor aprovado com sucesso!' })
+
+  } catch (err) {
+    console.error('Erro no approvedTeacher:', err)
+    res.status(500).json({ error: 'Erro interno do servidor.' })
+  }
+}

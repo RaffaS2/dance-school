@@ -54,7 +54,7 @@ export default function Register() {
           email,
           phone_number: phone,
           password,
-          id_user_type: parseInt(userType), // envia o cargo para o backend
+          id_user_type: parseInt(userType),
         }),
       })
 
@@ -65,7 +65,12 @@ export default function Register() {
         return
       }
 
-      router.push('/login')
+      // Se o backend indicar que a conta está pendente de aprovação
+      if (data.pending) {
+        router.push('/pendingapproval')
+      } else {
+        router.push('/login')
+      }
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
     } finally {
@@ -164,11 +169,18 @@ export default function Register() {
             onChange={(e) => setUserType(e.target.value)}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)] cursor-pointer"
           >
-            {/* id=1 (Admin/Coordenação) não aparece aqui — é atribuído manualmente no Neon */}
-            <option value="2">Professor</option>
             <option value="3">Encarregado de Educação</option>
+            <option value="2">Professor</option>
           </select>
         </div>
+
+        {/* Aviso para Professores */}
+        {userType === '2' && (
+          <div className="mb-5 px-4 py-3 rounded-md bg-[rgba(212,83,126,0.06)] border border-[rgba(212,83,126,0.15)] text-[12px] text-[#7a5a6a]">
+            <span className="mr-1">⚠️</span>
+            As contas de Professor requerem aprovação da coordenação. Receberás um email quando a tua conta for ativada.
+          </div>
+        )}
 
         {/* Palavra-passe */}
         <div className="mb-5">
