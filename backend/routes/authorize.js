@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 // Tipos de utilizador (correspondem aos IDs na tabela user_types do Neon)
 // 1 = Admin (Coordenação)
 // 2 = Professor
-// 3 = Encarregado de Educação
+// 3 = Encarregado de Educaçãoo
 
 // Uso nas rotas:
 // authorize(1)       → só Admin
