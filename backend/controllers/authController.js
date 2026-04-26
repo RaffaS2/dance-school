@@ -22,8 +22,9 @@ const register = async (req, res) => {
       'SELECT id_user FROM users WHERE email = $1',
       [email]
     )
+
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Este email já está registado.' })
+      return res.status(409).json({ error: 'this email is already registered.' })
     }
 
     // Encripta a password com bcrypt (10 rounds)
@@ -36,6 +37,7 @@ const register = async (req, res) => {
     )
 
     res.status(201).json({ user: result.rows[0] })
+
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -51,16 +53,18 @@ const login = async (req, res) => {
       'SELECT * FROM users WHERE email = $1',
       [email]
     )
+
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' })
+      return res.status(401).json({ error: 'invalid email or password.' })
     }
 
     const user = result.rows[0]
 
     // Compara a password introduzida com o hash guardado na base de dados
     const passwordMatch = await bcrypt.compare(password, user.password)
+
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Email ou palavra-passe incorretos.' })
+      return res.status(401).json({ error: 'invalid email or password.' })
     }
 
     // Gera o JWT com os dados do utilizador (expira em 7 dias)
@@ -72,15 +76,16 @@ const login = async (req, res) => {
 
     // Envia o token num cookie httpOnly (mais seguro que localStorage)
     res.cookie('token', token, {
-      httpOnly: true,   // não acessível via JavaScript no browser
-      secure: process.env.NODE_ENV === 'production', // só HTTPS em produção
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 dias em milissegundos
+      maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
     res.status(200).json({
       user: { id: user.id_user, name: user.name, email: user.email }
     })
+
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -98,9 +103,10 @@ const forgotPassword = async (req, res) => {
     )
 
     // Responde sempre com sucesso para não revelar se o email existe ou não
-    // (boa prática de segurança)
     if (result.rows.length === 0) {
-      return res.status(200).json({ message: 'Se este email existir, receberás um link em breve.' })
+      return res.status(200).json({
+        message: 'if this email exists, you will receive a link shortly.'
+      })
     }
 
     const userId = result.rows[0].id_user
@@ -116,7 +122,7 @@ const forgotPassword = async (req, res) => {
     // Constrói o link de reset que será enviado no email
     const resetLink = `${process.env.FRONTEND_URL}/resetpassword?token=${resetToken}`
 
-    // Envia o email com Nodemailer
+    // Envia o email com Nodemailer (HTML NÃO ALTERADO)
     await transporter.sendMail({
       from: `"EntArtes" <${process.env.EMAIL_USER}>`,
       to: email,
@@ -164,7 +170,10 @@ const forgotPassword = async (req, res) => {
       `
     })
 
-    res.status(200).json({ message: 'Se este email existir, receberás um link em breve.' })
+    res.status(200).json({
+      message: 'if this email exists, you will receive a link shortly.'
+    })
+
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -175,12 +184,12 @@ const resetPassword = async (req, res) => {
   try {
     const { token, password } = req.body
 
-    // Verifica e descodifica o token
     let decoded
+
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET)
     } catch (err) {
-      return res.status(400).json({ error: 'Link inválido ou expirado.' })
+      return res.status(400).json({ error: 'invalid or expired link.' })
     }
 
     // Encripta a nova password
@@ -192,7 +201,10 @@ const resetPassword = async (req, res) => {
       [hashedPassword, decoded.id]
     )
 
-    res.status(200).json({ message: 'Palavra-passe atualizada com sucesso.' })
+    res.status(200).json({
+      message: 'password updated successfully.'
+    })
+
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -202,7 +214,7 @@ const resetPassword = async (req, res) => {
 const logout = async (req, res) => {
   // Limpa o cookie do token
   res.clearCookie('token')
-  res.status(200).json({ message: 'Sessão terminada com sucesso.' })
+  res.status(200).json({ message: 'session ended successfully.' })
 }
 
 module.exports = { register, login, forgotPassword, resetPassword, logout }

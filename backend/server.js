@@ -6,12 +6,13 @@ const pool = require('./db')
 const cors = require('cors') // permite que o backend num dominio diferente acesse o frontend
 const cookieParser = require('cookie-parser') // "middleman" que ajuda o express a ler os cookies
 
-app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
-app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
+
 app.use(cors({ // permissão para o back falar com o front
   origin: 'http://localhost:3000', // URL do frontend
   credentials: true               // true para enviar os cookies
 }))
+app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
+app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
 
 app.get('/', (req, res) => { // cria uma rota GET que devolve uma msg
   res.json({ message: 'hello backend' })
