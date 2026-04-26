@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { getApiBase } from '../lib/apiBase'
 
 export default function Register() {
   const router = useRouter()
+  const apiBase = getApiBase()
 
   // Estado dos campos do formulário
   const [name, setName] = useState('')
@@ -49,7 +51,7 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/register', {
+      const res = await fetch(`${apiBase}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

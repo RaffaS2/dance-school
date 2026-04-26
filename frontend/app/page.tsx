@@ -1,18 +1,57 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { getApiBase } from "./lib/apiBase";
 
-async function getData() {
-  try {
-    const res = await fetch("http://localhost:3001", { cache: "no-store" });
-    if (!res.ok) throw new Error("Erro ao buscar dados");
-    return await res.json();
-  } catch (err) {
-    return { message: "Backend offline" };
+type SessionUser = {
+  id_user: number;
+  name: string;
+  email: string;
+  id_user_type: number;
+};
+
+export default function HomePage() {
+  const apiBase = getApiBase();
+  const [utilizador, setUtilizador] = useState<SessionUser | null>(null);
+  const [loadingSessao, setLoadingSessao] = useState(true);
+
+  const carregarSessao = useCallback(async () => {
+    setLoadingSessao(true);
+    try {
+      const res = await fetch(`${apiBase}/api/auth/me`, {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        setUtilizador(null);
+        return;
+      }
+
+      const data = (await res.json()) as { user: SessionUser };
+      setUtilizador(data.user);
+    } catch {
+      setUtilizador(null);
+    } finally {
+      setLoadingSessao(false);
+    }
+  }, [apiBase]);
+
+  useEffect(() => {
+    void carregarSessao();
+  }, [carregarSessao]);
+
+  async function terminarSessao() {
+    try {
+      await fetch(`${apiBase}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } finally {
+      setUtilizador(null);
+    }
   }
-}
-
-export default async function HomePage() {
-  const data = await getData();
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -29,16 +68,38 @@ export default async function HomePage() {
         </div>
 
         <nav className="flex gap-3">
-          <Link href="/login">
-            <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
-              Login
+          {loadingSessao ? (
+            <button className="border border-black px-4 py-2 rounded-lg bg-white text-black" disabled>
+              A carregar...
             </button>
-          </Link>
-          <Link href="/signup">
-            <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">
-              Registar
-            </button>
-          </Link>
+          ) : utilizador ? (
+            <>
+              <Link href="/dashboard">
+                <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
+                  {utilizador.name}
+                </button>
+              </Link>
+              <button
+                onClick={terminarSessao}
+                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
+              >
+                Sair
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
+                  Login
+                </button>
+              </Link>
+              <Link href="/signup">
+                <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">
+                  Registar
+                </button>
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 

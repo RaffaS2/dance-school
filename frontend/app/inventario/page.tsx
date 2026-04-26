@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getApiBase } from "../lib/apiBase";
 
 type ItemStatusFilter = "todos" | "disponivel" | "em-uso" | "sem-stock";
 
@@ -37,8 +38,12 @@ type InventoryItem = {
 	adicionadoPorUtilizador: boolean;
 };
 
-const CURRENT_USER_ID = 1;
-const utilizadorAtual = "Joao Silva";
+type SessionUser = {
+	id_user: number;
+	name: string;
+	email: string;
+	id_user_type: number;
+};
 
 function initials(value: string) {
 	return value
@@ -68,6 +73,8 @@ function estadoDoItem(emPosseDoUtilizador: boolean, itemBloqueado: boolean) {
 }
 
 export default function InventoryPage() {
+	const apiBase = getApiBase();
+	const [utilizadorAtual, setUtilizadorAtual] = useState<SessionUser | null>(null);
 	const [itens, setItens] = useState<InventoryItem[]>([]);
 	const [categoriasApi, setCategoriasApi] = useState<ApiCategory[]>([]);
 	const [requisicoes, setRequisicoes] = useState<ApiItemRequest[]>([]);
@@ -83,14 +90,32 @@ export default function InventoryPage() {
 	const [novoNome, setNovoNome] = useState("");
 	const [novaCategoria, setNovaCategoria] = useState("");
 
+	const carregarSessao = useCallback(async () => {
+		try {
+			const res = await fetch(`${apiBase}/api/auth/me`, {
+				credentials: "include",
+			});
+
+			if (!res.ok) {
+				setUtilizadorAtual(null);
+				return;
+			}
+
+			const data = (await res.json()) as { user: SessionUser };
+			setUtilizadorAtual(data.user);
+		} catch {
+			setUtilizadorAtual(null);
+		}
+	}, [apiBase]);
+
 	const carregarDados = useCallback(async () => {
 		setErro("");
 		setLoading(true);
 		try {
 			const [itemsRes, categoriesRes, requestsRes] = await Promise.all([
-				fetch("http://localhost:3001/items", { cache: "no-store" }),
-				fetch("http://localhost:3001/categories", { cache: "no-store" }),
-				fetch("http://localhost:3001/item-requests", { cache: "no-store" }),
+				fetch(`${apiBase}/items`, { cache: "no-store" }),
+				fetch(`${apiBase}/categories`, { cache: "no-store" }),
+				fetch(`${apiBase}/item-requests`, { cache: "no-store" }),
 			]);
 
 			if (!itemsRes.ok || !categoriesRes.ok || !requestsRes.ok) {
@@ -124,7 +149,11 @@ export default function InventoryPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [apiBase]);
+
+	useEffect(() => {
+		void carregarSessao();
+	}, [carregarSessao]);
 
 	useEffect(() => {
 		void carregarDados();
@@ -140,8 +169,9 @@ export default function InventoryPage() {
 	}, [requisicoes]);
 
 	const requisicoesAtivasDoUtilizador = useMemo(() => {
-		return requisicoesAtivasGerais.filter((request) => request.id_user === CURRENT_USER_ID);
-	}, [requisicoesAtivasGerais]);
+		if (!utilizadorAtual) return [];
+		return requisicoesAtivasGerais.filter((request) => request.id_user === utilizadorAtual.id_user);
+	}, [requisicoesAtivasGerais, utilizadorAtual]);
 
 	const requisicaoAtivaPorItem = useMemo(() => {
 		const map = new Map<number, ApiItemRequest>();
@@ -154,13 +184,15 @@ export default function InventoryPage() {
 	const itemBloqueadoPorOutraRequisicao = useMemo(() => {
 		const map = new Map<number, boolean>();
 		for (const request of requisicoesAtivasGerais) {
-			const emPosseDoUtilizadorAtual = request.id_user === CURRENT_USER_ID;
+			const emPosseDoUtilizadorAtual = utilizadorAtual
+				? request.id_user === utilizadorAtual.id_user
+				: false;
 			if (!emPosseDoUtilizadorAtual) {
 				map.set(request.id_item, true);
 			}
 		}
 		return map;
-	}, [requisicoesAtivasGerais]);
+	}, [requisicoesAtivasGerais, utilizadorAtual]);
 
 	const requisicoesAtivas = useMemo(() => {
 		return itens.filter((item) => requisicaoAtivaPorItem.has(item.id));
@@ -188,17 +220,22 @@ export default function InventoryPage() {
 	}, [itens, requisicaoAtivaPorItem, itemBloqueadoPorOutraRequisicao, pesquisa, filtroCategoria, filtroEstado]);
 
 	async function requisitarItem(item: InventoryItem) {
+		if (!utilizadorAtual) {
+			alert("Precisas de iniciar sessão para requisitar itens.");
+			return;
+		}
+
 		if (requisicaoAtivaPorItem.has(item.id) || itemBloqueadoPorOutraRequisicao.get(item.id)) return;
 		setItemEmAcao(item.id);
 		try {
-			const res = await fetch("http://localhost:3001/item-requests", {
+			const res = await fetch(`${apiBase}/item-requests`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					request_date: hojeISO(),
 					return_date: null,
 					id_item: item.id,
-					id_user: CURRENT_USER_ID,
+					id_user: utilizadorAtual.id_user,
 					delivery_status: "entregue",
 					request_status: "ativo",
 				}),
@@ -219,7 +256,7 @@ export default function InventoryPage() {
 
 		setItemEmAcao(item.id);
 		try {
-			const res = await fetch(`http://localhost:3001/item-requests/${request.id_item_request}`, {
+			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -247,7 +284,7 @@ export default function InventoryPage() {
 		);
 		if (existente) return existente.id_category;
 
-		const res = await fetch("http://localhost:3001/categories", {
+		const res = await fetch(`${apiBase}/categories`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ name: categoriaNome }),
@@ -266,7 +303,7 @@ export default function InventoryPage() {
 		setSubmitting(true);
 		try {
 			const idCategoria = await garantirCategoria(novaCategoria.trim());
-			const res = await fetch("http://localhost:3001/items", {
+			const res = await fetch(`${apiBase}/items`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -296,7 +333,7 @@ export default function InventoryPage() {
 
 		setItemEmAcao(item.id);
 		try {
-			const res = await fetch(`http://localhost:3001/items/${item.id}`, {
+			const res = await fetch(`${apiBase}/items/${item.id}`, {
 				method: "DELETE",
 			});
 			if (!res.ok) throw new Error("Falha ao remover item");
@@ -322,7 +359,9 @@ export default function InventoryPage() {
 						/>
 						<div>
 							<h1 className="text-xl font-bold">Inventário</h1>
-							<p className="text-sm text-gray-600">Utilizador atual: {utilizadorAtual}</p>
+							<p className="text-sm text-gray-600">
+								Utilizador atual: {utilizadorAtual?.name ?? "Não autenticado"}
+							</p>
 						</div>
 					</div>
 
@@ -342,6 +381,18 @@ export default function InventoryPage() {
 			</header>
 
 			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
+				{!utilizadorAtual && (
+					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
+						Sessão não encontrada. Inicia sessão em
+						{" "}
+						<Link href="/login" className="font-semibold underline">
+							/login
+						</Link>
+						{" "}
+						para veres as tuas requisições corretamente.
+					</div>
+				)}
+
 				{loading && (
 					<div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow">
 						A carregar inventário...

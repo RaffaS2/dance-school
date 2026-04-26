@@ -3,8 +3,10 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { getApiBase } from '../lib/apiBase'
 
 function ResetPasswordForm() {
+  const apiBase = getApiBase()
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token')
@@ -54,7 +56,7 @@ function ResetPasswordForm() {
 
     setLoading(true)
     try {
-      const res = await fetch('http://localhost:3001/api/auth/reset-password', {
+      const res = await fetch(`${apiBase}/api/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, password }),
