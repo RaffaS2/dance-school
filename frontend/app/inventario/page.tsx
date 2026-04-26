@@ -10,7 +10,7 @@ type ItemStatusFilter = "todos" | "disponivel" | "em-uso" | "sem-stock";
 type ApiItem = {
 	id_item: number;
 	name: string;
-	status: string;
+	status: number;
 	id_category: number;
 };
 
@@ -25,15 +25,15 @@ type ApiItemRequest = {
 	return_date: string | null;
 	id_item: number;
 	id_user: number;
-	delivery_status: string;
-	request_status: string;
+	delivery_status: number;
+	request_status: number;
 };
 
 type InventoryItem = {
 	id: number;
 	nome: string;
 	categoria: string;
-	status: string;
+	status: number;
 	visual: string;
 	adicionadoPorUtilizador: boolean;
 };
@@ -55,7 +55,7 @@ function initials(value: string) {
 }
 
 function isActiveRequest(request: ApiItemRequest) {
-	return request.request_status !== "devolvido" && !request.return_date;
+	return !request.return_date;
 }
 
 function formatDate(dateString: string) {
@@ -72,9 +72,26 @@ function estadoDoItem(emPosseDoUtilizador: boolean, itemBloqueado: boolean) {
 	return "Disponível";
 }
 
+function estadoInternoItem(status: number) {
+	if (status === 1) return "Disponível";
+	if (status === 2) return "Em Uso";
+	if (status === 3) return "Inativo";
+	return "Desconhecido";
+}
+
+async function getApiErrorMessage(response: Response, fallback: string) {
+	try {
+		const data = (await response.json()) as { error?: string; message?: string };
+		return data.error || data.message || fallback;
+	} catch {
+		return fallback;
+	}
+}
+
 export default function InventoryPage() {
 	const apiBase = getApiBase();
 	const [utilizadorAtual, setUtilizadorAtual] = useState<SessionUser | null>(null);
+	const [loadingSessao, setLoadingSessao] = useState(true);
 	const [itens, setItens] = useState<InventoryItem[]>([]);
 	const [categoriasApi, setCategoriasApi] = useState<ApiCategory[]>([]);
 	const [requisicoes, setRequisicoes] = useState<ApiItemRequest[]>([]);
@@ -91,6 +108,7 @@ export default function InventoryPage() {
 	const [novaCategoria, setNovaCategoria] = useState("");
 
 	const carregarSessao = useCallback(async () => {
+		setLoadingSessao(true);
 		try {
 			const res = await fetch(`${apiBase}/api/auth/me`, {
 				credentials: "include",
@@ -105,6 +123,8 @@ export default function InventoryPage() {
 			setUtilizadorAtual(data.user);
 		} catch {
 			setUtilizadorAtual(null);
+		} finally {
+			setLoadingSessao(false);
 		}
 	}, [apiBase]);
 
@@ -113,9 +133,9 @@ export default function InventoryPage() {
 		setLoading(true);
 		try {
 			const [itemsRes, categoriesRes, requestsRes] = await Promise.all([
-				fetch(`${apiBase}/items`, { cache: "no-store" }),
-				fetch(`${apiBase}/categories`, { cache: "no-store" }),
-				fetch(`${apiBase}/item-requests`, { cache: "no-store" }),
+				fetch(`${apiBase}/items`, { cache: "no-store", credentials: "include" }),
+				fetch(`${apiBase}/categories`, { cache: "no-store", credentials: "include" }),
+				fetch(`${apiBase}/item-requests`, { cache: "no-store", credentials: "include" }),
 			]);
 
 			if (!itemsRes.ok || !categoriesRes.ok || !requestsRes.ok) {
@@ -183,6 +203,11 @@ export default function InventoryPage() {
 
 	const itemBloqueadoPorOutraRequisicao = useMemo(() => {
 		const map = new Map<number, boolean>();
+
+		if (!utilizadorAtual) {
+			return map;
+		}
+
 		for (const request of requisicoesAtivasGerais) {
 			const emPosseDoUtilizadorAtual = utilizadorAtual
 				? request.id_user === utilizadorAtual.id_user
@@ -231,20 +256,25 @@ export default function InventoryPage() {
 			const res = await fetch(`${apiBase}/item-requests`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
+				credentials: "include",
 				body: JSON.stringify({
 					request_date: hojeISO(),
 					return_date: null,
 					id_item: item.id,
 					id_user: utilizadorAtual.id_user,
-					delivery_status: "entregue",
-					request_status: "ativo",
+					delivery_status: 1,
+					request_status: 1,
 				}),
 			});
 
-			if (!res.ok) throw new Error("Falha ao requisitar item");
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao requisitar item");
+				throw new Error(message);
+			}
 			await carregarDados();
-		} catch {
-			alert("Não foi possível requisitar o item.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível requisitar o item.";
+			alert(message);
 		} finally {
 			setItemEmAcao(null);
 		}
@@ -259,20 +289,25 @@ export default function InventoryPage() {
 			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
 				method: "PUT",
 				headers: { "Content-Type": "application/json" },
+				credentials: "include",
 				body: JSON.stringify({
 					request_date: request.request_date,
 					return_date: hojeISO(),
 					id_item: request.id_item,
 					id_user: request.id_user,
-					delivery_status: "devolvido",
-					request_status: "devolvido",
+					delivery_status: request.delivery_status,
+					request_status: request.request_status,
 				}),
 			});
 
-			if (!res.ok) throw new Error("Falha ao devolver item");
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao devolver item");
+				throw new Error(message);
+			}
 			await carregarDados();
-		} catch {
-			alert("Não foi possível devolver o item.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível devolver o item.";
+			alert(message);
 		} finally {
 			setItemEmAcao(null);
 		}
@@ -287,10 +322,14 @@ export default function InventoryPage() {
 		const res = await fetch(`${apiBase}/categories`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
+			credentials: "include",
 			body: JSON.stringify({ name: categoriaNome }),
 		});
 
-		if (!res.ok) throw new Error("Não foi possível criar categoria");
+		if (!res.ok) {
+			const message = await getApiErrorMessage(res, "Não foi possível criar categoria");
+			throw new Error(message);
+		}
 		const category = (await res.json()) as ApiCategory;
 		setCategoriasApi((current) => [category, ...current]);
 		return category.id_category;
@@ -306,27 +345,35 @@ export default function InventoryPage() {
 			const res = await fetch(`${apiBase}/items`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
+				credentials: "include",
 				body: JSON.stringify({
 					name: novoNome.trim(),
-					status: "disponivel",
+					status: 1,
 					id_category: idCategoria,
 				}),
 			});
 
-			if (!res.ok) throw new Error("Falha ao criar item");
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao criar item");
+				throw new Error(message);
+			}
 			setNovoNome("");
 			setNovaCategoria("");
 			await carregarDados();
-		} catch {
-			alert("Não foi possível guardar o item.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível guardar o item.";
+			alert(message);
 		} finally {
 			setSubmitting(false);
 		}
 	}
 
 	async function removerItem(item: InventoryItem) {
-		const temRequisicaoAtiva = requisicoesAtivasGerais.some((request) => request.id_item === item.id);
-		if (temRequisicaoAtiva) return;
+		const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
+		if (temHistoricoRequisicoes) {
+			alert("Não é possível remover este item porque já tem histórico de requisições.");
+			return;
+		}
 
 		const confirmado = window.confirm(`Remover o item \"${item.nome}\" do inventário?`);
 		if (!confirmado) return;
@@ -335,11 +382,16 @@ export default function InventoryPage() {
 		try {
 			const res = await fetch(`${apiBase}/items/${item.id}`, {
 				method: "DELETE",
+				credentials: "include",
 			});
-			if (!res.ok) throw new Error("Falha ao remover item");
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao remover item");
+				throw new Error(message);
+			}
 			await carregarDados();
-		} catch {
-			alert("Não foi possível remover o item.");
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível remover o item.";
+			alert(message);
 		} finally {
 			setItemEmAcao(null);
 		}
@@ -381,7 +433,7 @@ export default function InventoryPage() {
 			</header>
 
 			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
-				{!utilizadorAtual && (
+				{!loadingSessao && !utilizadorAtual && (
 					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
 						Sessão não encontrada. Inicia sessão em
 						{" "}
@@ -529,7 +581,7 @@ export default function InventoryPage() {
 
 								<h3 className="text-base font-semibold">{item.nome}</h3>
 								<p className="mt-2 text-xs text-gray-500">Categoria: {item.categoria}</p>
-								<p className="mt-1 text-xs text-gray-500">Estado API: {item.status}</p>
+								<p className="mt-1 text-xs text-gray-500">Estado: {estadoInternoItem(item.status)}</p>
 								<p className="mt-1 text-xs text-gray-500">
 									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
 								</p>
@@ -545,7 +597,7 @@ export default function InventoryPage() {
 									) : (
 										<button
 											onClick={() => requisitarItem(item)}
-											disabled={itemBloqueado || itemEmAcao === item.id}
+											disabled={loadingSessao || itemBloqueado || itemEmAcao === item.id}
 											className="w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300 hover:enabled:bg-gray-600"
 										>
 											Requisitar Item
@@ -553,13 +605,18 @@ export default function InventoryPage() {
 									)}
 
 									{item.adicionadoPorUtilizador && !emPosseDoUtilizador && (
+										(() => {
+											const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
+											return (
 										<button
 											onClick={() => removerItem(item)}
-											disabled={itemBloqueado || itemEmAcao === item.id}
+											disabled={loadingSessao || itemBloqueado || temHistoricoRequisicoes || itemEmAcao === item.id}
 											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
 										>
 											Remover Item
 										</button>
+											)
+										})()
 									)}
 								</div>
 							</article>
