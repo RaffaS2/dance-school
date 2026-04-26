@@ -29,6 +29,12 @@ app.get('/test-db', async (req, res) => {
   }
 })
 
-app.listen(3001, () => { // sv corre na porta 3001, porque o frontend ta a usar 3000
-  console.log('running server on port 3001')
-})
+// Só arranca o servidor se for o ficheiro principal
+// Quando os testes fazem require('./server'), o listen NÃO é chamado
+if (require.main === module) {
+  app.listen(3001, () => {
+    console.log('running server on port 3001')
+  })
+}
+
+module.exports = app // exporta o app para o Supertest usar
