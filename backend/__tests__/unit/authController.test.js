@@ -17,7 +17,7 @@ const { register, login, forgotPassword, resetPassword, logout } = require('../.
 
 // Cria objetos falsos que imitam o req e res do Express
 // O controller só precisa de req.body, res.status, res.json, res.cookie e res.clearCookie
-function criarReqRes(body = {}) {
+function createReqRes(body = {}) {
   const req = { body }
 
   const res = {
@@ -42,7 +42,7 @@ describe('register', () => {
     // simula que a bd encontrou um utilizador com este email
     pool.query.mockResolvedValueOnce({ rows: [{ id_user: 1 }] })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       name: 'test',
       email: 'test@test.com',
       password: '123456',
@@ -62,7 +62,7 @@ describe('register', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id_user: 1, name: 'test', email: 'test@test.com' }] })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       name: 'test',
       email: 'test@test.com',
       password: '123456',
@@ -85,7 +85,7 @@ describe('login', () => {
     // simula que a bd não encontrou nenhum utilizador com este email
     pool.query.mockResolvedValueOnce({ rows: [] })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       email: 'noone@test.com',
       password: '123'
     })
@@ -105,7 +105,7 @@ describe('login', () => {
       rows: [{ id_user: 1, email: 'test@test.com', password: hashedPassword, id_user_type: 1 }]
     })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       email: 'test@test.com',
       password: 'wrongpassword'
     })
@@ -125,7 +125,7 @@ describe('login', () => {
       rows: [{ id_user: 1, name: 'test', email: 'test@test.com', password: hashedPassword, id_user_type: 1 }]
     })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       email: 'test@test.com',
       password: 'password123'
     })
@@ -147,7 +147,7 @@ describe('forgotPassword', () => {
     // boa prática de segurança: nunca revelar se o email existe ou não
     pool.query.mockResolvedValueOnce({ rows: [] })
 
-    const { req, res } = criarReqRes({ email: 'noone@test.com' })
+    const { req, res } = createReqRes({ email: 'noone@test.com' })
 
     await forgotPassword(req, res)
 
@@ -161,7 +161,7 @@ describe('forgotPassword', () => {
     // simula que a bd encontrou o utilizador
     pool.query.mockResolvedValueOnce({ rows: [{ id_user: 1, name: 'test' }] })
 
-    const { req, res } = criarReqRes({ email: 'test@test.com' })
+    const { req, res } = createReqRes({ email: 'test@test.com' })
 
     await forgotPassword(req, res)
 
@@ -176,7 +176,7 @@ describe('forgotPassword', () => {
 describe('resetPassword', () => {
 
   test('invalid token - returns 400', async () => {
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       token: 'invalid.token.here',
       password: 'newpassword123'
     })
@@ -194,7 +194,7 @@ describe('resetPassword', () => {
     // simula o update na bd
     pool.query.mockResolvedValueOnce({ rows: [] })
 
-    const { req, res } = criarReqRes({
+    const { req, res } = createReqRes({
       token,
       password: 'newpassword123'
     })
