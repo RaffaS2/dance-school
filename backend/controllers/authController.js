@@ -96,6 +96,11 @@ exports.register = async (req, res) => {
       [name, email, phone, password_hash, id_user_type]
     )
 
+    await pool.query(
+      `INSERT INTO students (name, id_user) VALUES ($1, $2)`,
+      [name, result.rows[0].id_user]
+    )
+
     return res.status(201).json({ message: 'Conta criada com sucesso!', userId: result.rows[0].id_user })
 
   } catch (err) {
