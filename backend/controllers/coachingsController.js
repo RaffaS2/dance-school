@@ -2,6 +2,17 @@
 
 const pool = require('../db')
 
+function normalizeCoachingStatus(status) {
+    if (!status) return status
+
+    const normalized = String(status).trim().toLowerCase()
+    if (normalized === 'aprovado pelo professor' || normalized === 'confirmado') return 'aprovado'
+    if (normalized === 'rejeitado pelo professor') return 'rejeitado'
+    if (normalized === 'aprovado' || normalized === 'rejeitado' || normalized === 'pendente') return normalized
+
+    return normalized
+}
+
 // cria o coaching
 const createCoaching = async (req, res) => {
     try {
@@ -58,9 +69,10 @@ const updateCoaching = async (req, res) => {
     try {
         const { id } = req.params
         const { id_professor, id_studio, id_modality, date, start_time, duration_minutes, status, price, professor_validation, guardian_validation, coordination_validation } = req.body
+        const normalizedStatus = normalizeCoachingStatus(status)
         const result = await pool.query(
             'UPDATE coachings SET id_professor = $1, id_studio = $2, id_modality = $3, date = $4, start_time = $5, duration_minutes = $6, status = $7, price = $8, professor_validation = $9, guardian_validation = $10, coordination_validation = $11 WHERE id_coaching = $12 RETURNING *',
-            [id_professor, id_studio, id_modality, date, start_time, duration_minutes, status, price, professor_validation, guardian_validation, coordination_validation, id]
+            [id_professor, id_studio, id_modality, date, start_time, duration_minutes, normalizedStatus, price, professor_validation, guardian_validation, coordination_validation, id]
         )
         res.status(200).json(result.rows[0])
     } catch (error) {

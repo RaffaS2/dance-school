@@ -170,7 +170,7 @@ export default function ValidarAulasProfessorPage() {
       }
 
       const approved = action === "aceitar";
-      const nextStatus = approved ? "Aprovado pelo professor" : "Rejeitado pelo professor";
+      const nextStatus = approved ? "aprovado" : "rejeitado";
 
       const updateResponse = await fetch(`${apiBase}/coachings/${idCoaching}`, {
         method: "PUT",
