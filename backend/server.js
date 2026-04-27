@@ -6,12 +6,13 @@ const pool = require('./db')
 const cors = require('cors') // permite que o backend num dominio diferente acesse o frontend
 const cookieParser = require('cookie-parser') // "middleman" que ajuda o express a ler os cookies
 
-app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
-app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
+
 app.use(cors({ // permissão para o back falar com o front
   origin: 'http://localhost:3000', // URL do frontend
   credentials: true               // true para enviar os cookies
 }))
+app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
+app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
 
 app.get('/', (req, res) => { // cria uma rota GET que devolve uma msg
   res.json({ message: 'hello backend' })
@@ -29,6 +30,12 @@ app.get('/test-db', async (req, res) => {
   }
 })
 
-app.listen(3001, () => { // sv corre na porta 3001, porque o frontend ta a usar 3000
-  console.log('running server on port 3001')
-})
+// Só arranca o servidor se for o ficheiro principal
+// Quando os testes fazem require('./server'), o listen NÃO é chamado
+if (require.main === module) {
+  app.listen(3001, () => {
+    console.log('running server on port 3001')
+  })
+}
+
+module.exports = app // exporta o app para o Supertest usar

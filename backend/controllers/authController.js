@@ -37,7 +37,6 @@ exports.register = async (req, res) => {
         return res.status(409).json({ error: 'Este email já está registado ou tem um pedido pendente.' })
       }
 
-      // Token de aprovação válido 48h
       const approval_token = jwt.sign(
         { email, name, phone, password_hash },
         process.env.JWT_SECRET,
@@ -50,7 +49,6 @@ exports.register = async (req, res) => {
         [name, email, phone, password_hash, approval_token]
       )
 
-      // Email para a coordenação
       const approveUrl = `${process.env.FRONTEND_URL}/approvedteacher?token=${approval_token}`
 
       await transporter.sendMail({
@@ -263,10 +261,17 @@ exports.approveTeacher = async (req, res) => {
     }
 
     // Criar conta na tabela users como Professor (id_user_type = 2)
-    await pool.query(
+    const newUser = await pool.query(
       `INSERT INTO users (name, email, phone_number, password, id_user_type)
-       VALUES ($1, $2, $3, $4, 2)`,
+       VALUES ($1, $2, $3, $4, 2) RETURNING id_user`,
       [name, email, phone, password]
+    )
+
+    // Inserir na tabela professors
+    await pool.query(
+      `INSERT INTO professors (id_user, active)
+       VALUES ($1, true)`,
+      [newUser.rows[0].id_user]
     )
 
     // Remover da tabela de pendentes
@@ -278,7 +283,7 @@ exports.approveTeacher = async (req, res) => {
       to: email,
       subject: 'Conta aprovada — EntArtes',
       html: `
-        <h2>Olá, ${name}! </h2>
+        <h2>Olá, ${name}!</h2>
         <p>A tua conta de <strong>Professor</strong> na EntArtes foi aprovada pela coordenação.</p>
         <p>Já podes fazer login:</p>
         <a href="${process.env.FRONTEND_URL}/login" style="
@@ -296,7 +301,7 @@ exports.approveTeacher = async (req, res) => {
     return res.status(200).json({ message: 'Professor aprovado com sucesso!' })
 
   } catch (err) {
-    console.error('Erro no approvedTeacher:', err)
+    console.error('Erro no approveTeacher:', err)
     res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
