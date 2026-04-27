@@ -36,6 +36,22 @@ const readStudentById = async (req, res) => {
     }
 }
 
+// lê o estudante do utilizador autenticado
+const readMyStudent = async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM students WHERE id_user = $1',
+            [req.user.id]
+        )
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Aluno não encontrado.' })
+        }
+        res.json(result.rows[0])
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
 // atualiza o estudante pelo id
 const updateStudent = async (req, res) => {
     try {
@@ -65,4 +81,4 @@ const deleteStudent = async (req, res) => {
     }
 }
 
-module.exports = { createStudent, readAllStudents, readStudentById, updateStudent, deleteStudent }
+module.exports = { createStudent, readAllStudents, readStudentById, updateStudent, deleteStudent, readMyStudent }

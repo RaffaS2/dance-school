@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 // Tipos de utilizador (correspondem aos IDs na tabela user_types do Neon)
 // 1 = Admin (Coordenação)
 // 2 = Professor
-// 3 = Encarregado de Educaçãoo
+// 3 = Encarregado de Educação
 
 // Uso nas rotas:
 // authorize(1)       → só Admin
@@ -23,7 +23,7 @@ const authorize = (...allowedTypes) => (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
     // Verifica se o cargo do utilizador tem permissão para aceder à rota
-    if (!allowedTypes.includes(decoded.type)) {
+    if (!allowedTypes.includes(decoded.id_user_type)) {
       return res.status(403).json({ error: 'Sem permissão para aceder a este recurso.' })
     }
 

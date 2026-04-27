@@ -12,8 +12,8 @@ type SessionUser = {
   id_user_type: number;
 };
 
-function canAccessValidation(userType: number) {
-  return userType !== 3;
+function isProfessorOrAdmin(userType: number) {
+  return userType !== 3; // 3 = utilizador normal
 }
 
 export default function HomePage() {
@@ -25,7 +25,7 @@ export default function HomePage() {
   const carregarSessao = useCallback(async () => {
     setLoadingSessao(true);
     try {
-      const res = await fetch(`${apiBase}/api/auth/me`, {
+      const res = await fetch(`${apiBase}/auth/me`, {
         credentials: "include",
       });
 
@@ -37,7 +37,7 @@ export default function HomePage() {
 
       const data = (await res.json()) as { user: SessionUser };
       setUtilizador(data.user);
-      setIsProfessor(canAccessValidation(data.user.id_user_type));
+      setIsProfessor(isProfessorOrAdmin(data.user.id_user_type));
     } catch {
       setUtilizador(null);
       setIsProfessor(false);
@@ -52,7 +52,7 @@ export default function HomePage() {
 
   async function terminarSessao() {
     try {
-      await fetch(`${apiBase}/api/auth/logout`, {
+      await fetch(`${apiBase}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -78,7 +78,10 @@ export default function HomePage() {
 
         <nav className="flex gap-3">
           {loadingSessao ? (
-            <button className="border border-black px-4 py-2 rounded-lg bg-white text-black" disabled>
+            <button
+              className="border border-black px-4 py-2 rounded-lg bg-white text-black"
+              disabled
+            >
               A carregar...
             </button>
           ) : utilizador ? (
@@ -138,7 +141,12 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section className={`grid ${isProfessor ? "md:grid-cols-3" : "md:grid-cols-2"} gap-6 p-6`}>
+      <section
+        className={`grid gap-6 p-6 ${
+          isProfessor ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-2"
+        }`}
+      >
+        {/* Coaching — todos */}
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="text-xl font-semibold mb-2">Coaching</h3>
           <p className="text-gray-600 mb-4">Gestão de sessões de coaching.</p>
@@ -149,6 +157,7 @@ export default function HomePage() {
           </Link>
         </div>
 
+        {/* Inventário — todos */}
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="text-xl font-semibold mb-2">Inventário</h3>
           <p className="text-gray-600 mb-4">Controle de itens e requisições.</p>
@@ -159,17 +168,35 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {isProfessor ? (
+        {/* Validação de Aulas — só professores e admins */}
+        {isProfessor && (
           <div className="bg-white p-6 rounded-2xl shadow text-center">
             <h3 className="text-xl font-semibold mb-2">Validação de Aulas</h3>
-            <p className="text-gray-600 mb-4">Aprovação de marcações pelo professor.</p>
+            <p className="text-gray-600 mb-4">
+              Aprovação de marcações pelo professor.
+            </p>
             <Link href="/professor/validar">
               <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
                 Ir para Validação
               </button>
             </Link>
           </div>
-        ) : null}
+        )}
+
+        {/* Disponibilidades — só professores e admins */}
+        {isProfessor && (
+          <div className="bg-white p-6 rounded-2xl shadow text-center">
+            <h3 className="text-xl font-semibold mb-2">Disponibilidades</h3>
+            <p className="text-gray-600 mb-4">
+              Gestão de horários disponíveis.
+            </p>
+            <Link href="/availabilities">
+              <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                Ir para Disponibilidades
+              </button>
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Footer */}
