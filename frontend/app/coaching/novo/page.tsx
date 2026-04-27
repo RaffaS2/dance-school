@@ -1,15 +1,22 @@
 import NovoCoachingForm from "./NovoCoachingForm";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 async function getData() {
-  const [prof, alunos, mods, est] = await Promise.all([
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+
+  const headers: HeadersInit = token ? { Cookie: `token=${token}` } : {};
+
+  const [prof, alunos, mods, est, sessao] = await Promise.all([
     fetch("http://localhost:3001/professors", { cache: "no-store" }).then(r => r.json()),
     fetch("http://localhost:3001/students", { cache: "no-store" }).then(r => r.json()),
     fetch("http://localhost:3001/modalities", { cache: "no-store" }).then(r => r.json()),
     fetch("http://localhost:3001/studios", { cache: "no-store" }).then(r => r.json()),
+    fetch("http://localhost:3001/api/auth/me", { cache: "no-store", headers }).then(r => r.ok ? r.json() : null),
   ]);
 
-  return { prof, alunos, mods, est };
+  return { prof, alunos, mods, est, sessao };
 }
 
 export default async function Page() {
@@ -17,7 +24,7 @@ export default async function Page() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      
+
       {/* Header */}
       <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
         <div className="flex items-center gap-4">
