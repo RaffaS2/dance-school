@@ -13,10 +13,10 @@ export default function NovoCoachingForm({
   const [selectedModalidade, setSelectedModalidade] = useState("");
   const [selectedEstudio, setSelectedEstudio] = useState("");
 
-  const [horarios, setHorarios] = useState<string[]>([]);
+  const [horarios, setHorarios] = useState<any[]>([]);
   const [horarioSelecionado, setHorarioSelecionado] = useState("");
 
-  // 🔥 buscar horários quando escolhes professor
+  // buscar horários com DATA + HORA
   const handleProfessorChange = async (id: string) => {
     setSelectedProfessor(id);
     setHorarios([]);
@@ -29,17 +29,13 @@ export default function NovoCoachingForm({
 
       const data = await res.json();
 
-      const horas = data.map((h: any) =>
-        h.start_time.slice(0, 5)
-      );
-
-      setHorarios(horas);
+      setHorarios(data); // agora guardas tudo (data + hora)
     } catch (err) {
       console.error(err);
     }
   };
 
-  // 🔥 SUBMIT COMPLETO
+  // 🔥 SUBMIT
   const handleSubmit = async () => {
     if (
       !selectedProfessor ||
@@ -52,10 +48,10 @@ export default function NovoCoachingForm({
       return;
     }
 
-    try {
-      const hoje = new Date().toISOString().split("T")[0];
+    // separar data e hora
+    const [date, time] = horarioSelecionado.split(" ");
 
-      // 1️⃣ criar coaching
+    try {
       const res = await fetch("http://localhost:3001/coachings", {
         method: "POST",
         headers: {
@@ -65,8 +61,8 @@ export default function NovoCoachingForm({
           id_professor: selectedProfessor,
           id_studio: selectedEstudio,
           id_modality: selectedModalidade,
-          date: hoje,
-          start_time: horarioSelecionado,
+          date: date,
+          start_time: time,
           duration_minutes: 60,
           status: "pendente",
           price: 0,
@@ -75,7 +71,6 @@ export default function NovoCoachingForm({
 
       const coaching = await res.json();
 
-      // 2️⃣ ligar aluno ao coaching
       await fetch("http://localhost:3001/studentCoachings", {
         method: "POST",
         headers: {
@@ -151,25 +146,32 @@ export default function NovoCoachingForm({
         ))}
       </select>
 
-      {/* Horários */}
+      {/* Horários com DATA + HORA */}
       {selectedProfessor && (
         <div className="mb-4">
           <p className="mb-2 font-medium">Horários disponíveis:</p>
 
           <div className="flex gap-2 flex-wrap">
-            {horarios.map((h) => (
-              <button
-                key={h}
-                onClick={() => setHorarioSelecionado(h)}
-                className={`px-3 py-1 rounded ${
-                  horarioSelecionado === h
-                    ? "bg-black text-white"
-                    : "bg-gray-400 text-white"
-                }`}
-              >
-                {h}
-              </button>
-            ))}
+            {horarios.map((h: any) => {
+              const data = h.date?.split("T")[0];
+              const hora = h.start_time.slice(0, 5);
+
+              const valor = `${data} ${hora}`;
+
+              return (
+                <button
+                  key={valor}
+                  onClick={() => setHorarioSelecionado(valor)}
+                  className={`px-3 py-1 rounded ${
+                    horarioSelecionado === valor
+                      ? "bg-black text-white"
+                      : "bg-gray-400 text-white"
+                  }`}
+                >
+                  {data} - {hora}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
