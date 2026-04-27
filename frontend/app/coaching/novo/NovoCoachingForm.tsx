@@ -35,7 +35,7 @@ export default function NovoCoachingForm({
     }
   };
 
-  // 🔥 SUBMIT
+  // SUBMIT
   const handleSubmit = async () => {
     if (
       !selectedProfessor ||
@@ -82,7 +82,7 @@ export default function NovoCoachingForm({
         }),
       });
 
-      alert("✅ Coaching criado com sucesso!");
+      alert(" Coaching criado com sucesso!");
 
     } catch (error) {
       console.error(error);
