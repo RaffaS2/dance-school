@@ -1,23 +1,22 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export default function CoachingPage() {
-  const coachings = [
-    {
-      id: 1,
-      aluno: "Ana",
-      professor: "Maria",
-      data: "2026-04-10",
-      hora: "14:00",
-    },
-    {
-      id: 2,
-      aluno: "Pedro",
-      professor: "João",
-      data: "2026-04-11",
-      hora: "09:00",
-    },
-  ];
+async function getCoachings() {
+  try {
+    const res = await fetch("http://localhost:3001/api/coachings", {
+      cache: "no-store",
+    });
+
+    if (!res.ok) throw new Error("Erro ao buscar coachings");
+
+    return await res.json();
+  } catch (err) {
+    return [];
+  }
+}
+
+export default async function CoachingPage() {
+  const coachings = await getCoachings();
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -53,14 +52,45 @@ export default function CoachingPage() {
       {/* Conteúdo */}
       <div className="p-6">
         <div className="grid gap-4">
-          {coachings.map((c) => (
-            <div key={c.id} className="bg-white p-4 rounded-xl shadow">
-              <p className="font-semibold">Aluno: {c.aluno}</p>
-              <p className="text-gray-600">Professor: {c.professor}</p>
-              <p className="text-gray-500 text-sm">Data: {c.data}</p>
-              <p className="text-gray-500 text-sm">Hora: {c.hora}</p>
-            </div>
-          ))}
+
+          {coachings.length === 0 ? (
+            <p>Sem coachings disponíveis.</p>
+          ) : (
+            coachings.map((c: any) => (
+              <div key={c.id_coaching} className="bg-white p-4 rounded-xl shadow">
+
+                <p className="font-semibold">
+                  {c.modalidade} - {c.estudio}
+                </p>
+
+                <p className="text-gray-600">
+                  Professor: {c.professor}
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Data: {c.date?.split("T")[0]}
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Hora: {c.start_time}
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Duração: {c.duration_minutes} min
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Estado: {c.status}
+                </p>
+
+                <p className="text-gray-500 text-sm">
+                  Preço: {c.price}€
+                </p>
+
+              </div>
+            ))
+          )}
+
         </div>
       </div>
     </div>

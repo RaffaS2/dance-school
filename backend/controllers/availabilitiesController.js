@@ -20,9 +20,22 @@ const createAvailability = async (req, res) => {
 // lê todos os availabilities
 const readAllAvailabilities = async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM availabilities')
+        const result = await pool.query(`
+            SELECT 
+                a.id_availability,
+                a.date,
+                a.start_time,
+                a.end_time,
+                u.name AS professor
+            FROM availabilities a
+            LEFT JOIN professors p ON a.id_professor = p.id_professor
+            LEFT JOIN users u ON p.id_user = u.id_user
+            ORDER BY a.date, a.start_time
+        `)
+
         res.json(result.rows)
     } catch (error) {
+        console.error(error)
         res.status(500).json({ error: error.message })
     }
 }

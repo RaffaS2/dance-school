@@ -305,3 +305,34 @@ exports.approveTeacher = async (req, res) => {
     res.status(500).json({ error: 'Erro interno do servidor.' })
   }
 }
+
+// ─── ME (sessão atual) ───────────────────────────────────────────────────────
+exports.me = async (req, res) => {
+  try {
+    const token = req.cookies?.token
+
+    if (!token) {
+      return res.status(401).json({ error: 'Não autenticado.' })
+    }
+
+    let decoded
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET)
+    } catch (err) {
+      return res.status(401).json({ error: 'Sessão inválida ou expirada.' })
+    }
+
+    const result = await pool.query(
+      'SELECT id_user, name, email, id_user_type FROM users WHERE id_user = $1',
+      [decoded.id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilizador não encontrado.' })
+    }
+
+    res.status(200).json({ user: result.rows[0] })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+}

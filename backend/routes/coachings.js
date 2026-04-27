@@ -1,7 +1,14 @@
 const express = require('express')
 const router = express.Router()
 const authorize = require('./authorize')
-const { createCoaching, readAllCoachings, readCoachingById, updateCoaching, deleteCoaching } = require('../controllers/coachingsController')
+
+const {
+	createCoaching,
+	readAllCoachings,
+	readCoachingById,
+	updateCoaching,
+	deleteCoaching,
+} = require('../controllers/coachingsController')
 
 router.post('/',     authorize(1, 2),    createCoaching)      
 router.get('/',      authorize(1, 2, 3), readAllCoachings)    

@@ -3,10 +3,10 @@ import Link from "next/link";
 
 async function getData() {
   const [prof, alunos, mods, est] = await Promise.all([
-    fetch("http://localhost:3001/professors", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/students", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/modalities", { cache: "no-store" }).then(r => r.json()),
-    fetch("http://localhost:3001/studios", { cache: "no-store" }).then(r => r.json()),
+    fetch("http://localhost:3001/api/professors", { cache: "no-store" }).then(r => r.json()),
+    fetch("http://localhost:3001/api/students", { cache: "no-store" }).then(r => r.json()),
+    fetch("http://localhost:3001/api/modalities", { cache: "no-store" }).then(r => r.json()),
+    fetch("http://localhost:3001/api/studios", { cache: "no-store" }).then(r => r.json()),
   ]);
 
   return { prof, alunos, mods, est };
