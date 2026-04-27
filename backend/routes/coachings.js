@@ -1,6 +1,12 @@
 const express = require('express')
 const router = express.Router()
-const { createCoaching, readAllCoachings, readCoachingById, updateCoaching, deleteCoaching } = require('../controllers/coachingsController')
+const {
+	createCoaching,
+	readAllCoachings,
+	readCoachingById,
+	updateCoaching,
+	deleteCoaching,
+} = require('../controllers/coachingsController')
 
 router.post('/', createCoaching)
 router.get('/', readAllCoachings)

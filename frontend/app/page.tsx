@@ -12,9 +12,14 @@ type SessionUser = {
   id_user_type: number;
 };
 
+function canAccessValidation(userType: number) {
+  return userType !== 3;
+}
+
 export default function HomePage() {
   const apiBase = getApiBase();
   const [utilizador, setUtilizador] = useState<SessionUser | null>(null);
+  const [isProfessor, setIsProfessor] = useState(false);
   const [loadingSessao, setLoadingSessao] = useState(true);
 
   const carregarSessao = useCallback(async () => {
@@ -26,13 +31,16 @@ export default function HomePage() {
 
       if (!res.ok) {
         setUtilizador(null);
+        setIsProfessor(false);
         return;
       }
 
       const data = (await res.json()) as { user: SessionUser };
       setUtilizador(data.user);
+      setIsProfessor(canAccessValidation(data.user.id_user_type));
     } catch {
       setUtilizador(null);
+      setIsProfessor(false);
     } finally {
       setLoadingSessao(false);
     }
@@ -50,6 +58,7 @@ export default function HomePage() {
       });
     } finally {
       setUtilizador(null);
+      setIsProfessor(false);
     }
   }
 
@@ -129,7 +138,7 @@ export default function HomePage() {
       </section>
 
       {/* Features */}
-      <section className="grid md:grid-cols-2 gap-6 p-6">
+      <section className={`grid ${isProfessor ? "md:grid-cols-3" : "md:grid-cols-2"} gap-6 p-6`}>
         <div className="bg-white p-6 rounded-2xl shadow text-center">
           <h3 className="text-xl font-semibold mb-2">Coaching</h3>
           <p className="text-gray-600 mb-4">Gestão de sessões de coaching.</p>
@@ -149,6 +158,18 @@ export default function HomePage() {
             </button>
           </Link>
         </div>
+
+        {isProfessor ? (
+          <div className="bg-white p-6 rounded-2xl shadow text-center">
+            <h3 className="text-xl font-semibold mb-2">Validação de Aulas</h3>
+            <p className="text-gray-600 mb-4">Aprovação de marcações pelo professor.</p>
+            <Link href="/professor/validar">
+              <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                Ir para Validação
+              </button>
+            </Link>
+          </div>
+        ) : null}
       </section>
 
       {/* Footer */}

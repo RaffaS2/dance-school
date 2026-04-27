@@ -22,6 +22,7 @@ const readAllCoachings = async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 c.id_coaching,
+                c.id_professor,
                 u.name AS professor,
                 c.date,
                 c.start_time,
@@ -81,4 +82,10 @@ const deleteCoaching = async (req, res) => {
     }
 }
 
-module.exports = { createCoaching, readAllCoachings, readCoachingById, updateCoaching, deleteCoaching }
+module.exports = {
+    createCoaching,
+    readAllCoachings,
+    readCoachingById,
+    updateCoaching,
+    deleteCoaching,
+}
