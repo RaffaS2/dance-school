@@ -17,7 +17,7 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
     }
 
     try {
-      // 🔥 converter data para formato correto (YYYY-MM-DD)
+      // converter data para formato correto (YYYY-MM-DD)
       const formattedDate = new Date(date).toISOString().split("T")[0];
 
       const res = await fetch("http://localhost:3001/availabilities", {
@@ -26,7 +26,7 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id_professor: Number(selectedProfessor), // 🔥 importante
+          id_professor: Number(selectedProfessor), //  importante
           date: formattedDate,
           start_time: startTime,
           end_time: endTime,
@@ -42,7 +42,7 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
         throw new Error(data.error || "Erro ao criar disponibilidade");
       }
 
-      alert("✅ Disponibilidade criada com sucesso!");
+      alert("Disponibilidade criada com sucesso!");
 
       // limpar form
       setSelectedProfessor("");
