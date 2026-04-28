@@ -67,4 +67,24 @@ const readAvailabilitiesByProfessor = async (req, res) => {
     }
 }
 
-module.exports = { createAvailability, readAllAvailabilities, readAvailabilityById, readAvailabilitiesByProfessor }
+// elimina a availability pelo id
+const deleteAvailability = async (req, res) => {
+    try {
+        const { id } = req.params
+        const result = await pool.query(
+            'DELETE FROM availabilities WHERE id_availability = $1 RETURNING *',
+            [id]
+        )
+        res.status(204).json(result.rows[0])
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
+module.exports = { 
+    createAvailability, 
+    readAllAvailabilities, 
+    readAvailabilityById, 
+    readAvailabilitiesByProfessor,
+    deleteAvailability,
+}

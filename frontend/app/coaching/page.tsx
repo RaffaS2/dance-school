@@ -14,15 +14,21 @@ type SessionUser = {
 
 type ApiCoaching = {
 	id_coaching: number;
+	id_professor?: number;
+	id_studio?: number;
+	id_modality?: number;
 	professor: string;
 	modalidade: string;
 	estudio: string;
-	aluno?: string; // só vem no endpoint do encarregado
+	aluno?: string;
 	date: string;
 	start_time: string;
 	duration_minutes: number;
 	status: string;
 	price: number;
+	professor_validation?: boolean | null;
+	guardian_validation?: boolean | null;
+	coordination_validation?: boolean | null;
 };
 
 function formatDate(dateString: string) {
@@ -42,6 +48,11 @@ function estadoColor(status: string) {
 	}
 }
 
+function podeCancelar(status: string) {
+	const s = status?.toLowerCase() ?? "";
+	return !s.includes("cancelado");
+}
+
 export default function CoachingPage() {
 	const apiBase = getApiBase();
 
@@ -50,6 +61,7 @@ export default function CoachingPage() {
 	const [coachings, setCoachings] = useState<ApiCoaching[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [erro, setErro] = useState("");
+	const [cancelandoId, setCelandoId] = useState<number | null>(null);
 
 	// ── 1. Carregar sessão ──────────────────────────────────────────────────
 	const carregarSessao = useCallback(async () => {
@@ -71,7 +83,7 @@ export default function CoachingPage() {
 		}
 	}, [apiBase]);
 
-	// ── 2. Carregar coachings filtrados por tipo de utilizador ──────────────
+	// ── 2. Carregar coachings ───────────────────────────────────────────────
 	const carregarCoachings = useCallback(
 		async (user: SessionUser) => {
 			setErro("");
@@ -80,7 +92,6 @@ export default function CoachingPage() {
 				let url = "";
 
 				if (user.id_user_type === 2) {
-					// Professor → descobre o id_professor a partir do id_user
 					const profRes = await fetch(`${apiBase}/professors`, {
 						credentials: "include",
 					});
@@ -96,10 +107,8 @@ export default function CoachingPage() {
 					}
 					url = `${apiBase}/coachings/professor/${prof.id_professor}`;
 				} else if (user.id_user_type === 1) {
-					// Admin → vê todos
 					url = `${apiBase}/coachings`;
 				} else {
-					// Encarregado / aluno → filtra pelos seus educandos
 					url = `${apiBase}/coachings/guardian/${user.id_user}`;
 				}
 
@@ -107,7 +116,7 @@ export default function CoachingPage() {
 				if (!res.ok) throw new Error("Falha ao carregar coachings.");
 				const data = (await res.json()) as ApiCoaching[];
 				setCoachings(data);
-			} catch (error) {
+			} catch {
 				setErro("Não foi possível carregar os coachings.");
 			} finally {
 				setLoading(false);
@@ -116,7 +125,59 @@ export default function CoachingPage() {
 		[apiBase],
 	);
 
-	// ── 3. Efeitos ──────────────────────────────────────────────────────────
+	// ── 3. Cancelar coaching ────────────────────────────────────────────────
+	const cancelarCoaching = async (coaching: ApiCoaching) => {
+		const confirmado = window.confirm(
+			`Tens a certeza que queres cancelar o coaching de ${formatDate(coaching.date)} às ${coaching.start_time?.slice(0, 5)}?`
+		);
+		if (!confirmado) return;
+
+		setCelandoId(coaching.id_coaching);
+		setErro("");
+
+		try {
+			// Busca os detalhes completos para o PUT
+			const detailRes = await fetch(`${apiBase}/coachings/${coaching.id_coaching}`, {
+				credentials: "include",
+			});
+			if (!detailRes.ok) throw new Error("Não foi possível ler os dados do coaching.");
+
+			const detailPayload = await detailRes.json();
+			const detail = Array.isArray(detailPayload) ? detailPayload[0] : detailPayload;
+
+			if (!detail) throw new Error("Coaching não encontrado.");
+
+			const updateRes = await fetch(`${apiBase}/coachings/${coaching.id_coaching}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					id_professor: detail.id_professor,
+					id_studio: detail.id_studio,
+					id_modality: detail.id_modality,
+					date: detail.date,
+					start_time: detail.start_time,
+					duration_minutes: detail.duration_minutes,
+					status: "cancelado",
+					price: detail.price,
+					professor_validation: detail.professor_validation,
+					guardian_validation: detail.guardian_validation,
+					coordination_validation: detail.coordination_validation,
+				}),
+			});
+
+			if (!updateRes.ok) throw new Error("Não foi possível cancelar o coaching.");
+
+			// Recarrega a lista
+			if (utilizadorAtual) await carregarCoachings(utilizadorAtual);
+		} catch (err) {
+			setErro(err instanceof Error ? err.message : "Erro ao cancelar coaching.");
+		} finally {
+			setCelandoId(null);
+		}
+	};
+
+	// ── 4. Efeitos ──────────────────────────────────────────────────────────
 	useEffect(() => {
 		void carregarSessao();
 	}, [carregarSessao]);
@@ -129,7 +190,7 @@ export default function CoachingPage() {
 		}
 	}, [loadingSessao, utilizadorAtual, carregarCoachings]);
 
-	// ── 4. Render ───────────────────────────────────────────────────────────
+	// ── 5. Render ───────────────────────────────────────────────────────────
 	return (
 		<div className="min-h-screen bg-gray-100 text-zinc-900">
 			{/* Header */}
@@ -226,7 +287,6 @@ export default function CoachingPage() {
 										</span>
 									</div>
 
-									{/* Só o encarregado vê o nome do aluno */}
 									{c.aluno && (
 										<p className="mb-1 text-sm font-medium text-blue-600">
 											Aluno: {c.aluno}
@@ -246,6 +306,17 @@ export default function CoachingPage() {
 									<p className="text-xs text-gray-500">
 										Preço: {c.price}€
 									</p>
+
+									{/* Botão cancelar */}
+									{podeCancelar(c.status) && (
+										<button
+											onClick={() => cancelarCoaching(c)}
+											disabled={cancelandoId === c.id_coaching}
+											className="mt-3 w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+										>
+											{cancelandoId === c.id_coaching ? "A cancelar..." : "Cancelar Coaching"}
+										</button>
+									)}
 								</article>
 							))
 						)}
