@@ -3,17 +3,37 @@
 const pool = require('../db')
 
 const createUser = async (req, res) => {
-    try {
-      const { name, email, phone_number, id_user_type } = req.body
-      const result = await pool.query(
-        'INSERT INTO users (name, email, phone_number, id_user_type) VALUES ($1, $2, $3, $4) RETURNING *',
-        [name, email, phone_number, id_user_type]
+  try {
+    const { name, email, phone_number, id_user_type } = req.body
+
+    // 1. Insere sempre na tabela users
+    const result = await pool.query(
+      'INSERT INTO users (name, email, phone_number, id_user_type) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, email, phone_number, id_user_type]
+    )
+
+    const newUser = result.rows[0]
+
+    // 2. Insere na tabela correta consoante o tipo de utilizador
+
+    if (parseInt(id_user_type) === 2)  {
+      await pool.query(
+        'INSERT INTO professors (id_user) VALUES ($1)',
+        [newUser.id_user]
       )
-      res.status(201).json(result.rows[0])
-    } catch (error) {
-      res.status(500).json({ error: error.message })
+    } else if (parseInt(id_user_type) === 3) {
+      await pool.query(
+        'INSERT INTO students (id_user, name) VALUES ($1, $2)',
+        [newUser.id_user, newUser.name]
+      )
     }
+
+    res.status(201).json(newUser)
+
+  } catch (error) {
+    res.status(500).json({ error: error.message })
   }
+}
 
 // lê todos os utilizadores
 const readAllUsers = async (req, res) => {

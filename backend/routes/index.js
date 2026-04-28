@@ -1,7 +1,10 @@
 const express = require('express')
 const router = express.Router()
+const authMiddleware = require('../middleware/authMiddleware')
 
-router.use('/api/auth', require('./auth'))
+router.use('/api/auth',  require('./auth'))
+
+router.use(authMiddleware) // tudo abaixo do authmiddleware está protegido
 router.use('/availabilities', require('./availabilities'))
 router.use('/users', require('./users'))
 router.use('/professors', require('./professors'))
