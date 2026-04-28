@@ -212,7 +212,7 @@ describe('resetPassword', () => {
 describe('logout', () => {
 
   test('clears cookie and returns 200', async () => {
-    const { req, res } = criarReqRes()
+    const { req, res } = createReqRes()
 
     await logout(req, res)
 

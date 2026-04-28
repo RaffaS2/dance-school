@@ -31,7 +31,7 @@ const readCoachingById = async (req, res) => {
     try {
         const { id } = req.params
         const result = await pool.query('SELECT * FROM coachings WHERE id_coaching = $1', [id])
-        res.json(result.rows)
+        res.json(result.rows[0])
     } catch (error) {
         res.status(500).json({ error: error.message })
     }

@@ -42,7 +42,7 @@ describe('POST /api/auth/register', () => {
 
 describe('POST /api/auth/login', () => {
 
-  test('invalid credences - 200 + cookie', async () => {
+  test('invalid credentials - 200 + cookie', async () => {
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@test.com', password: '123456' })
