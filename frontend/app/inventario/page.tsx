@@ -2,88 +2,103 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { getApiBase } from "../lib/apiBase";
 
 type ItemStatusFilter = "todos" | "disponivel" | "em-uso" | "sem-stock";
+
+type ApiItem = {
+	id_item: number;
+	name: string;
+	status: number;
+	id_category: number;
+};
+
+type ApiCategory = {
+	id_category: number;
+	name: string;
+};
+
+type ApiItemRequest = {
+	id_item_request: number;
+	request_date: string;
+	return_date: string | null;
+	id_item: number;
+	id_user: number;
+	delivery_status: number;
+	request_status: number;
+};
 
 type InventoryItem = {
 	id: number;
 	nome: string;
 	categoria: string;
-	descricao: string;
-	total: number;
-	emUso: number;
+	status: number;
 	visual: string;
 	adicionadoPorUtilizador: boolean;
 };
 
-const utilizadorAtual = "Joao Silva";
+type SessionUser = {
+	id_user: number;
+	name: string;
+	email: string;
+	id_user_type: number;
+};
 
-const itensIniciais: InventoryItem[] = [
-	{
-		id: 1,
-		nome: "Sapatilhas de Ballet Bloch",
-		categoria: "Vestuário e Calçado",
-		descricao: "Sapatilhas de ballet em excelente estado.",
-		total: 6,
-		emUso: 4,
-		visual: "SB",
-		adicionadoPorUtilizador: false,
-	},
-	{
-		id: 2,
-		nome: "Collant de Dança",
-		categoria: "Vestuário e Calçado",
-		descricao: "Collant tamanho M com estojo.",
-		total: 5,
-		emUso: 2,
-		visual: "CD",
-		adicionadoPorUtilizador: false,
-	},
-	{
-		id: 3,
-		nome: "Manual de Ballet Clássico Vol. 1",
-		categoria: "Material Didático",
-		descricao: "Livro de técnicas para iniciantes.",
-		total: 4,
-		emUso: 1,
-		visual: "MB",
-		adicionadoPorUtilizador: false,
-	},
-	{
-		id: 4,
-		nome: "Arco de Ginástica Rítmica",
-		categoria: "Equipamento de Ginástica",
-		descricao: "Arco para treino técnico e coreografias.",
-		total: 3,
-		emUso: 1,
-		visual: "AG",
-		adicionadoPorUtilizador: false,
-	},
-	{
-		id: 5,
-		nome: "Microfone Shure SM58",
-		categoria: "Equipamento Áudio",
-		descricao: "Microfone dinâmico profissional para ensaios.",
-		total: 2,
-		emUso: 0,
-		visual: "MS",
-		adicionadoPorUtilizador: false,
-	},
-];
+function initials(value: string) {
+	return value
+		.split(" ")
+		.slice(0, 2)
+		.map((part) => part[0]?.toUpperCase() ?? "")
+		.join("")
+		.slice(0, 2);
+}
 
-function estadoDoItem(item: InventoryItem, emPosseDoUtilizador: boolean) {
+function isActiveRequest(request: ApiItemRequest) {
+	return !request.return_date;
+}
+
+function formatDate(dateString: string) {
+	return new Date(dateString).toLocaleDateString("pt-PT");
+}
+
+function hojeISO() {
+	return new Date().toISOString().split("T")[0];
+}
+
+function estadoDoItem(emPosseDoUtilizador: boolean, itemBloqueado: boolean) {
 	if (emPosseDoUtilizador) return "Em Uso";
-	if (item.total - item.emUso > 0) return "Disponível";
-	return "Sem Stock";
+	if (itemBloqueado) return "Sem Stock";
+	return "Disponível";
+}
+
+function estadoInternoItem(status: number) {
+	if (status === 1) return "Disponível";
+	if (status === 2) return "Em Uso";
+	if (status === 3) return "Inativo";
+	return "Desconhecido";
+}
+
+async function getApiErrorMessage(response: Response, fallback: string) {
+	try {
+		const data = (await response.json()) as { error?: string; message?: string };
+		return data.error || data.message || fallback;
+	} catch {
+		return fallback;
+	}
 }
 
 export default function InventoryPage() {
-	const [itens, setItens] = useState<InventoryItem[]>(itensIniciais);
-	const [requisicoesUtilizador, setRequisicoesUtilizador] = useState<Record<number, string>>({
-		2: "20/02/2026",
-		3: "25/02/2026",
-	});
+	const apiBase = getApiBase();
+	const [utilizadorAtual, setUtilizadorAtual] = useState<SessionUser | null>(null);
+	const [loadingSessao, setLoadingSessao] = useState(true);
+	const [itens, setItens] = useState<InventoryItem[]>([]);
+	const [categoriasApi, setCategoriasApi] = useState<ApiCategory[]>([]);
+	const [requisicoes, setRequisicoes] = useState<ApiItemRequest[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [erro, setErro] = useState("");
+	const [submitting, setSubmitting] = useState(false);
+	const [itemEmAcao, setItemEmAcao] = useState<number | null>(null);
 
 	const [pesquisa, setPesquisa] = useState("");
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
@@ -91,23 +106,129 @@ export default function InventoryPage() {
 
 	const [novoNome, setNovoNome] = useState("");
 	const [novaCategoria, setNovaCategoria] = useState("");
-	const [novaDescricao, setNovaDescricao] = useState("");
-	const [novaQuantidade, setNovaQuantidade] = useState("1");
+
+	const carregarSessao = useCallback(async () => {
+		setLoadingSessao(true);
+		try {
+			const res = await fetch(`${apiBase}/api/auth/me`, {
+				credentials: "include",
+			});
+
+			if (!res.ok) {
+				setUtilizadorAtual(null);
+				return;
+			}
+
+			const data = (await res.json()) as { user: SessionUser };
+			setUtilizadorAtual(data.user);
+		} catch {
+			setUtilizadorAtual(null);
+		} finally {
+			setLoadingSessao(false);
+		}
+	}, [apiBase]);
+
+	const carregarDados = useCallback(async () => {
+		setErro("");
+		setLoading(true);
+		try {
+			const [itemsRes, categoriesRes, requestsRes] = await Promise.all([
+				fetch(`${apiBase}/items`, { cache: "no-store", credentials: "include" }),
+				fetch(`${apiBase}/categories`, { cache: "no-store", credentials: "include" }),
+				fetch(`${apiBase}/item-requests`, { cache: "no-store", credentials: "include" }),
+			]);
+
+			if (!itemsRes.ok || !categoriesRes.ok || !requestsRes.ok) {
+				throw new Error("Falha ao carregar dados do inventário.");
+			}
+
+			const [itemsData, categoriesData, requestsData] = (await Promise.all([
+				itemsRes.json(),
+				categoriesRes.json(),
+				requestsRes.json(),
+			])) as [ApiItem[], ApiCategory[], ApiItemRequest[]];
+
+			const categoriesById = new Map<number, string>(
+				categoriesData.map((category) => [category.id_category, category.name]),
+			);
+
+			setCategoriasApi(categoriesData);
+			setRequisicoes(requestsData);
+			setItens(
+				itemsData.map((item) => ({
+					id: item.id_item,
+					nome: item.name,
+					categoria: categoriesById.get(item.id_category) ?? "Sem categoria",
+					status: item.status,
+					visual: initials(item.name),
+					adicionadoPorUtilizador: true,
+				})),
+			);
+		} catch (error) {
+			setErro("Não foi possível carregar o inventário.");
+		} finally {
+			setLoading(false);
+		}
+	}, [apiBase]);
+
+	useEffect(() => {
+		void carregarSessao();
+	}, [carregarSessao]);
+
+	useEffect(() => {
+		void carregarDados();
+	}, [carregarDados]);
 
 	const categorias = useMemo(() => {
 		const todas = itens.map((item) => item.categoria);
 		return [...new Set(todas)].sort((a, b) => a.localeCompare(b));
 	}, [itens]);
 
+	const requisicoesAtivasGerais = useMemo(() => {
+		return requisicoes.filter((request) => isActiveRequest(request));
+	}, [requisicoes]);
+
+	const requisicoesAtivasDoUtilizador = useMemo(() => {
+		if (!utilizadorAtual) return [];
+		return requisicoesAtivasGerais.filter((request) => request.id_user === utilizadorAtual.id_user);
+	}, [requisicoesAtivasGerais, utilizadorAtual]);
+
+	const requisicaoAtivaPorItem = useMemo(() => {
+		const map = new Map<number, ApiItemRequest>();
+		for (const request of requisicoesAtivasDoUtilizador) {
+			map.set(request.id_item, request);
+		}
+		return map;
+	}, [requisicoesAtivasDoUtilizador]);
+
+	const itemBloqueadoPorOutraRequisicao = useMemo(() => {
+		const map = new Map<number, boolean>();
+
+		if (!utilizadorAtual) {
+			return map;
+		}
+
+		for (const request of requisicoesAtivasGerais) {
+			const emPosseDoUtilizadorAtual = utilizadorAtual
+				? request.id_user === utilizadorAtual.id_user
+				: false;
+			if (!emPosseDoUtilizadorAtual) {
+				map.set(request.id_item, true);
+			}
+		}
+		return map;
+	}, [requisicoesAtivasGerais, utilizadorAtual]);
+
 	const requisicoesAtivas = useMemo(() => {
-		return itens.filter((item) => requisicoesUtilizador[item.id]);
-	}, [itens, requisicoesUtilizador]);
+		return itens.filter((item) => requisicaoAtivaPorItem.has(item.id));
+	}, [itens, requisicaoAtivaPorItem]);
 
 	const itensFiltrados = useMemo(() => {
 		return itens.filter((item) => {
-			const emPosseDoUtilizador = Boolean(requisicoesUtilizador[item.id]);
-			const estado = estadoDoItem(item, emPosseDoUtilizador);
-			const textoOk = `${item.nome} ${item.descricao} ${item.categoria}`
+			const emPosseDoUtilizador = requisicaoAtivaPorItem.has(item.id);
+			const itemBloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+			const estado = estadoDoItem(emPosseDoUtilizador, itemBloqueado);
+			const textoOk = `${item.nome} ${item.categoria}`
 				.toLowerCase()
 				.includes(pesquisa.toLowerCase());
 
@@ -121,83 +242,159 @@ export default function InventoryPage() {
 
 			return textoOk && categoriaOk && estadoOk;
 		});
-	}, [itens, requisicoesUtilizador, pesquisa, filtroCategoria, filtroEstado]);
+	}, [itens, requisicaoAtivaPorItem, itemBloqueadoPorOutraRequisicao, pesquisa, filtroCategoria, filtroEstado]);
 
-	function dataHojeFormatada() {
-		return new Date().toLocaleDateString("pt-PT");
+	async function requisitarItem(item: InventoryItem) {
+		if (!utilizadorAtual) {
+			alert("Precisas de iniciar sessão para requisitar itens.");
+			return;
+		}
+
+		if (requisicaoAtivaPorItem.has(item.id) || itemBloqueadoPorOutraRequisicao.get(item.id)) return;
+		setItemEmAcao(item.id);
+		try {
+			const res = await fetch(`${apiBase}/item-requests`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					request_date: hojeISO(),
+					return_date: null,
+					id_item: item.id,
+					id_user: utilizadorAtual.id_user,
+					delivery_status: 1,
+					request_status: 1,
+				}),
+			});
+
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao requisitar item");
+				throw new Error(message);
+			}
+			await carregarDados();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível requisitar o item.";
+			alert(message);
+		} finally {
+			setItemEmAcao(null);
+		}
 	}
 
-	function requisitarItem(item: InventoryItem) {
-		const disponiveis = item.total - item.emUso;
-		if (disponiveis <= 0 || requisicoesUtilizador[item.id]) return;
+	async function devolverItem(item: InventoryItem) {
+		const request = requisicaoAtivaPorItem.get(item.id);
+		if (!request) return;
 
-		setItens((atual) =>
-			atual.map((i) => (i.id === item.id ? { ...i, emUso: i.emUso + 1 } : i)),
-		);
+		setItemEmAcao(item.id);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					request_date: request.request_date,
+					return_date: hojeISO(),
+					id_item: request.id_item,
+					id_user: request.id_user,
+					delivery_status: request.delivery_status,
+					request_status: request.request_status,
+				}),
+			});
 
-		setRequisicoesUtilizador((atual) => ({
-			...atual,
-			[item.id]: dataHojeFormatada(),
-		}));
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao devolver item");
+				throw new Error(message);
+			}
+			await carregarDados();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível devolver o item.";
+			alert(message);
+		} finally {
+			setItemEmAcao(null);
+		}
 	}
 
-	function devolverItem(item: InventoryItem) {
-		if (!requisicoesUtilizador[item.id]) return;
-
-		setItens((atual) =>
-			atual.map((i) => (i.id === item.id ? { ...i, emUso: Math.max(0, i.emUso - 1) } : i)),
+	async function garantirCategoria(categoriaNome: string) {
+		const existente = categoriasApi.find(
+			(category) => category.name.toLowerCase() === categoriaNome.toLowerCase(),
 		);
+		if (existente) return existente.id_category;
 
-		setRequisicoesUtilizador((atual) => {
-			const copia = { ...atual };
-			delete copia[item.id];
-			return copia;
+		const res = await fetch(`${apiBase}/categories`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			credentials: "include",
+			body: JSON.stringify({ name: categoriaNome }),
 		});
+
+		if (!res.ok) {
+			const message = await getApiErrorMessage(res, "Não foi possível criar categoria");
+			throw new Error(message);
+		}
+		const category = (await res.json()) as ApiCategory;
+		setCategoriasApi((current) => [category, ...current]);
+		return category.id_category;
 	}
 
-	function adicionarNovoItem(evento: FormEvent<HTMLFormElement>) {
+	async function adicionarNovoItem(evento: FormEvent<HTMLFormElement>) {
 		evento.preventDefault();
+		if (!novoNome.trim() || !novaCategoria.trim()) return;
 
-		const quantidade = Number(novaQuantidade);
-		if (!novoNome.trim() || !novaCategoria.trim() || !novaDescricao.trim() || quantidade < 1) return;
+		setSubmitting(true);
+		try {
+			const idCategoria = await garantirCategoria(novaCategoria.trim());
+			const res = await fetch(`${apiBase}/items`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					name: novoNome.trim(),
+					status: 1,
+					id_category: idCategoria,
+				}),
+			});
 
-		const novoItem: InventoryItem = {
-			id: Date.now(),
-			nome: novoNome.trim(),
-			categoria: novaCategoria.trim(),
-			descricao: novaDescricao.trim(),
-			total: quantidade,
-			emUso: 0,
-			visual: novoNome
-				.split(" ")
-				.slice(0, 2)
-				.map((p) => p[0]?.toUpperCase() ?? "")
-				.join("")
-				.slice(0, 2),
-			adicionadoPorUtilizador: true,
-		};
-
-		setItens((atual) => [novoItem, ...atual]);
-		setNovoNome("");
-		setNovaCategoria("");
-		setNovaDescricao("");
-		setNovaQuantidade("1");
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao criar item");
+				throw new Error(message);
+			}
+			setNovoNome("");
+			setNovaCategoria("");
+			await carregarDados();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível guardar o item.";
+			alert(message);
+		} finally {
+			setSubmitting(false);
+		}
 	}
 
-	function removerItem(item: InventoryItem) {
-		if (!item.adicionadoPorUtilizador) return;
-		if (item.emUso > 0 || requisicoesUtilizador[item.id]) return;
+	async function removerItem(item: InventoryItem) {
+		const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
+		if (temHistoricoRequisicoes) {
+			alert("Não é possível remover este item porque já tem histórico de requisições.");
+			return;
+		}
 
 		const confirmado = window.confirm(`Remover o item \"${item.nome}\" do inventário?`);
 		if (!confirmado) return;
 
-		setItens((atual) => atual.filter((i) => i.id !== item.id));
-		setRequisicoesUtilizador((atual) => {
-			if (!atual[item.id]) return atual;
-			const copia = { ...atual };
-			delete copia[item.id];
-			return copia;
-		});
+		setItemEmAcao(item.id);
+		try {
+			const res = await fetch(`${apiBase}/items/${item.id}`, {
+				method: "DELETE",
+				credentials: "include",
+			});
+			if (!res.ok) {
+				const message = await getApiErrorMessage(res, "Falha ao remover item");
+				throw new Error(message);
+			}
+			await carregarDados();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Não foi possível remover o item.";
+			alert(message);
+		} finally {
+			setItemEmAcao(null);
+		}
 	}
 
 	return (
@@ -214,7 +411,9 @@ export default function InventoryPage() {
 						/>
 						<div>
 							<h1 className="text-xl font-bold">Inventário</h1>
-							<p className="text-sm text-gray-600">Utilizador atual: {utilizadorAtual}</p>
+							<p className="text-sm text-gray-600">
+								Utilizador atual: {utilizadorAtual?.name ?? "Não autenticado"}
+							</p>
 						</div>
 					</div>
 
@@ -234,6 +433,30 @@ export default function InventoryPage() {
 			</header>
 
 			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
+				{!loadingSessao && !utilizadorAtual && (
+					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
+						Sessão não encontrada. Inicia sessão em
+						{" "}
+						<Link href="/login" className="font-semibold underline">
+							/login
+						</Link>
+						{" "}
+						para veres as tuas requisições corretamente.
+					</div>
+				)}
+
+				{loading && (
+					<div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow">
+						A carregar inventário...
+					</div>
+				)}
+
+				{erro && (
+					<div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 shadow">
+						{erro}
+					</div>
+				)}
+
 				<section className="grid gap-4 md:grid-cols-2">
 					<div className="rounded-xl bg-white p-5 shadow">
 						<h2 className="text-lg font-semibold">Minhas Requisições Ativas</h2>
@@ -253,7 +476,9 @@ export default function InventoryPage() {
 									<div className="flex items-start justify-between gap-3">
 										<div>
 											<h3 className="font-semibold">{item.nome}</h3>
-											<p className="mt-1 text-xs text-gray-500">Em uso desde: {requisicoesUtilizador[item.id]}</p>
+											<p className="mt-1 text-xs text-gray-500">
+												Em uso desde: {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
+											</p>
 										</div>
 										<span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-white">Em Uso</span>
 									</div>
@@ -281,27 +506,14 @@ export default function InventoryPage() {
 								placeholder="Categoria (ex: Material Didático)"
 								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
-							<textarea
-								value={novaDescricao}
-								onChange={(e) => setNovaDescricao(e.target.value)}
-								placeholder="Descrição curta"
-								rows={3}
-								className="w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-							/>
-							<input
-								type="number"
-								min={1}
-								value={novaQuantidade}
-								onChange={(e) => setNovaQuantidade(e.target.value)}
-								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-							/>
 						</div>
 
 						<button
 							type="submit"
+							disabled={submitting}
 							className="mt-4 w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-600"
 						>
-							Guardar Item
+							{submitting ? "A guardar..." : "Guardar Item"}
 						</button>
 					</form>
 				</section>
@@ -344,9 +556,9 @@ export default function InventoryPage() {
 
 				<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 					{itensFiltrados.map((item) => {
-						const emPosseDoUtilizador = Boolean(requisicoesUtilizador[item.id]);
-						const estado = estadoDoItem(item, emPosseDoUtilizador);
-						const disponiveis = item.total - item.emUso;
+						const emPosseDoUtilizador = requisicaoAtivaPorItem.has(item.id);
+						const itemBloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+						const estado = estadoDoItem(emPosseDoUtilizador, itemBloqueado);
 
 						return (
 							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -368,11 +580,8 @@ export default function InventoryPage() {
 								</div>
 
 								<h3 className="text-base font-semibold">{item.nome}</h3>
-								<p className="mt-2 text-sm text-gray-600">{item.descricao}</p>
 								<p className="mt-2 text-xs text-gray-500">Categoria: {item.categoria}</p>
-								<p className="mt-1 text-xs text-gray-500">
-									Disponíveis: <strong>{Math.max(0, disponiveis)}</strong> / {item.total}
-								</p>
+								<p className="mt-1 text-xs text-gray-500">Estado: {estadoInternoItem(item.status)}</p>
 								<p className="mt-1 text-xs text-gray-500">
 									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
 								</p>
@@ -388,21 +597,26 @@ export default function InventoryPage() {
 									) : (
 										<button
 											onClick={() => requisitarItem(item)}
-											disabled={disponiveis <= 0}
+											disabled={loadingSessao || itemBloqueado || itemEmAcao === item.id}
 											className="w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300 hover:enabled:bg-gray-600"
 										>
 											Requisitar Item
 										</button>
 									)}
 
-									{item.adicionadoPorUtilizador && (
+									{item.adicionadoPorUtilizador && !emPosseDoUtilizador && (
+										(() => {
+											const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
+											return (
 										<button
 											onClick={() => removerItem(item)}
-											disabled={item.emUso > 0 || Boolean(requisicoesUtilizador[item.id])}
+											disabled={loadingSessao || itemBloqueado || temHistoricoRequisicoes || itemEmAcao === item.id}
 											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
 										>
 											Remover Item
 										</button>
+											)
+										})()
 									)}
 								</div>
 							</article>
