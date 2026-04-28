@@ -303,9 +303,6 @@ export default function CoachingPage() {
 									<p className="text-xs text-gray-500">
 										Duração: {c.duration_minutes} min
 									</p>
-									<p className="text-xs text-gray-500">
-										Preço: {c.price}€
-									</p>
 
 									{/* Botão cancelar */}
 									{podeCancelar(c.status) && (

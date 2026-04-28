@@ -338,12 +338,6 @@ export default function ValidarAulasProfessorPage() {
                       <p className="text-sm text-gray-600">
                         Duração: {coaching.duration_minutes} minutos
                       </p>
-                      <p className="text-sm text-gray-600">
-                        Valor:{" "}
-                        {typeof coaching.price === "number"
-                          ? `${coaching.price} EUR`
-                          : "N/D"}
-                      </p>
                       {/* Admin vê o nome do professor */}
                       {user?.id_user_type === 1 && coaching.professor && (
                         <p className="text-sm text-gray-600">
