@@ -19,9 +19,25 @@ const createCoaching = async (req, res) => {
 // lê todos os coachings
 const readAllCoachings = async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM coachings')
+        const result = await pool.query(`
+            SELECT 
+                c.id_coaching,
+                c.id_professor,
+                u.name AS professor,
+                c.date,
+                c.start_time,
+                c.duration_minutes,
+                c.status,
+                c.price
+            FROM coachings c
+            LEFT JOIN professors p ON c.id_professor = p.id_professor
+            LEFT JOIN users u ON p.id_user = u.id_user
+            ORDER BY c.date, c.start_time
+        `)
+
         res.json(result.rows)
     } catch (error) {
+        console.error("ERRO:", error)
         res.status(500).json({ error: error.message })
     }
 }
@@ -66,4 +82,71 @@ const deleteCoaching = async (req, res) => {
     }
 }
 
-module.exports = { createCoaching, readAllCoachings, readCoachingById, updateCoaching, deleteCoaching }
+const readCoachingsByProfessor = async (req, res) => {
+    try {
+        const { id_professor } = req.params
+        const result = await pool.query(`
+            SELECT 
+                c.id_coaching,
+                u.name AS professor,
+                m.name AS modalidade,
+                s.name AS estudio,
+                c.date,
+                c.start_time,
+                c.duration_minutes,
+                c.status,
+                c.price
+            FROM coachings c
+            LEFT JOIN professors p ON c.id_professor = p.id_professor
+            LEFT JOIN users u ON p.id_user = u.id_user
+            LEFT JOIN modalities m ON c.id_modality = m.id_modality
+            LEFT JOIN studios s ON c.id_studio = s.id_studio
+            WHERE c.id_professor = $1
+            ORDER BY c.date, c.start_time
+        `, [id_professor])
+        res.json(result.rows)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
+const readCoachingsByGuardian = async (req, res) => {
+    try {
+        const { id_user } = req.params
+        const result = await pool.query(`
+            SELECT 
+                c.id_coaching,
+                u.name AS professor,
+                m.name AS modalidade,
+                s.name AS estudio,
+                st.name AS aluno,
+                c.date,
+                c.start_time,
+                c.duration_minutes,
+                c.status,
+                c.price
+            FROM coachings c
+            LEFT JOIN professors p ON c.id_professor = p.id_professor
+            LEFT JOIN users u ON p.id_user = u.id_user
+            LEFT JOIN modalities m ON c.id_modality = m.id_modality
+            LEFT JOIN studios s ON c.id_studio = s.id_studio
+            LEFT JOIN student_coachings sc ON c.id_coaching = sc.id_coaching
+            LEFT JOIN students st ON sc.id_student = st.id_student
+            WHERE st.id_user = $1
+            ORDER BY c.date, c.start_time
+        `, [id_user])
+        res.json(result.rows)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
+module.exports = {
+    createCoaching,
+    readAllCoachings,
+    readCoachingById,
+    readCoachingsByProfessor,  
+    readCoachingsByGuardian,    
+    updateCoaching,
+    deleteCoaching,
+}

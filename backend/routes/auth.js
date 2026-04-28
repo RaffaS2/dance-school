@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { register, login, forgotPassword, resetPassword, logout } = require('../controllers/authController')
+const { register, login, forgotPassword, resetPassword, logout, me } = require('../controllers/authController')
 
 // POST /api/auth/register      → cria conta nova
 router.post('/register', register)
@@ -13,6 +13,9 @@ router.post('/forgot-password', forgotPassword)
 
 // POST /api/auth/logout        → limpa o cookie e termina a sessão
 router.post('/logout', logout)
+
+// GET /api/auth/me             → devolve o utilizador autenticado (via cookie JWT)
+router.get('/me', me)
 
 router.post('/reset-password', resetPassword)
 
