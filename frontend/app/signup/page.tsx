@@ -54,7 +54,7 @@ export default function Register() {
         body: JSON.stringify({
           name: `${name} ${apelido}`,
           email,
-          phone_number: phone,
+          phone,        
           password,
           id_user_type: parseInt(userType),
         }),
@@ -67,7 +67,6 @@ export default function Register() {
         return
       }
 
-      // Se o backend indicar que a conta está pendente de aprovação
       if (data.pending) {
         router.push('/pendingapproval')
       } else {
@@ -108,7 +107,6 @@ export default function Register() {
         <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">Criar conta</h2>
         <p className="text-[13px] text-[#7a7a7a] mb-7">Junta-te à comunidade EntArtes</p>
 
-        {/* Mensagem de erro */}
         {error && (
           <div className="mb-5 px-4 py-3 rounded-md bg-[rgba(212,83,126,0.06)] border border-[rgba(212,83,126,0.2)] text-[12px] text-[#c0405f]">
             {error}
@@ -151,7 +149,7 @@ export default function Register() {
           />
         </div>
 
-        {/* Número de Telefone */}
+        {/* Telefone */}
         <div className="mb-5">
           <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Número de Telefone</label>
           <input
@@ -176,7 +174,7 @@ export default function Register() {
           </select>
         </div>
 
-        {/* Aviso para Professores */}
+        {/* Aviso Professores */}
         {userType === '2' && (
           <div className="mb-5 px-4 py-3 rounded-md bg-[rgba(212,83,126,0.06)] border border-[rgba(212,83,126,0.15)] text-[12px] text-[#7a5a6a]">
             <span className="mr-1">⚠️</span>
@@ -208,7 +206,7 @@ export default function Register() {
           />
         </div>
 
-        {/* Termos e condições */}
+        {/* Termos */}
         <div className="flex items-start gap-2.5 mb-6">
           <input
             type="checkbox"
@@ -233,7 +231,6 @@ export default function Register() {
           {loading ? 'A criar conta...' : 'Criar Conta'}
         </button>
 
-        {/* Divider */}
         <div className="flex items-center justify-center gap-2.5 w-full my-6">
           <div className="flex-1 h-px bg-[#eeeeee]" />
           <span className="text-[#bbbbbb] text-xs">ou</span>

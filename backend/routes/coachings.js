@@ -2,14 +2,7 @@ const express = require('express')
 const router = express.Router()
 const authorize = require('./authorize')
 
-const {
-	createCoaching,
-	readAllCoachings,
-	readCoachingById,
-	readCoachingsByProfessor,
-	readCoachingsByGuardian,
-	updateCoaching,
-	deleteCoaching,
+const { createCoaching, readAllCoachings, readCoachingById, readCoachingsByProfessor, readCoachingsByGuardian, updateCoaching, deleteCoaching,
 } = require('../controllers/coachingsController')
 
 {/*<<<<<<< HEAD

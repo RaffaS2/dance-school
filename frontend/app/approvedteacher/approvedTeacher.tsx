@@ -37,13 +37,13 @@ export default function ApproveTeacher() {
       <div className="bg-white p-10 rounded-2xl shadow-md max-w-md text-center">
         {status === 'loading' && (
           <>
-            <div className="text-5xl mb-4">:arrows_counterclockwise:</div>
+            <div className="text-5xl mb-4">🔄</div>
             <p className="text-gray-500">A processar...</p>
           </>
         )}
         {status === 'success' && (
           <>
-            <div className="text-5xl mb-4">:white_check_mark:</div>
+            <div className="text-5xl mb-4">✅</div>
             <h1 className="text-2xl font-bold text-green-700 mb-2">Aprovado!</h1>
             <p className="text-gray-500">{message}</p>
             <p className="text-gray-400 mt-2 text-sm">O professor recebeu um email de confirmação.</p>
@@ -51,7 +51,7 @@ export default function ApproveTeacher() {
         )}
         {status === 'error' && (
           <>
-            <div className="text-5xl mb-4">:x:</div>
+            <div className="text-5xl mb-4">❌</div>
             <h1 className="text-2xl font-bold text-red-600 mb-2">Erro</h1>
             <p className="text-gray-500">{message}</p>
           </>
