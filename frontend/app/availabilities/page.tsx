@@ -30,6 +30,7 @@ export default function AvailabilitiesPage() {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
+  const [removendoId, setRemovendoId] = useState<number | null>(null);
 
   // ── 1. Carregar sessão ──────────────────────────────────────────────────
   const carregarSessao = useCallback(async () => {
@@ -69,7 +70,31 @@ export default function AvailabilitiesPage() {
     }
   }, [apiBase]);
 
-  // ── 3. Efeitos ──────────────────────────────────────────────────────────
+  // ── 3. Eliminar disponibilidade ─────────────────────────────────────────
+  const eliminarAvailability = async (a: Availability) => {
+    const confirmado = window.confirm(
+      `Tens a certeza que queres eliminar a disponibilidade de ${new Date(a.date).toLocaleDateString("pt-PT")} das ${a.start_time} às ${a.end_time}?`
+    );
+    if (!confirmado) return;
+
+    setRemovendoId(a.id_availability);
+    setErro("");
+
+    try {
+      const res = await fetch(`${apiBase}/availabilities/${a.id_availability}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Não foi possível eliminar a disponibilidade.");
+      await carregarAvailabilities();
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Erro ao eliminar disponibilidade.");
+    } finally {
+      setRemovendoId(null);
+    }
+  };
+
+  // ── 4. Efeitos ──────────────────────────────────────────────────────────
   useEffect(() => {
     void carregarSessao();
   }, [carregarSessao]);
@@ -78,24 +103,17 @@ export default function AvailabilitiesPage() {
     void carregarAvailabilities();
   }, [carregarAvailabilities]);
 
-  // ── 4. Filtrar no frontend por id_user ──────────────────────────────────
+  // ── 5. Filtrar no frontend por id_user ──────────────────────────────────
   const availabilidadesFiltradas = (() => {
     if (!utilizadorAtual) return [];
-
-    // Admin (1) vê todas
     if (utilizadorAtual.id_user_type === 1) return availabilities;
-
-    // Professor (2) — filtra pelo id_user devolvido pelo backend
     if (utilizadorAtual.id_user_type === 2) {
-      return availabilities.filter(
-        (a) => a.id_user === utilizadorAtual.id_user
-      );
+      return availabilities.filter((a) => a.id_user === utilizadorAtual.id_user);
     }
-
     return [];
   })();
 
-  // ── 5. Render ───────────────────────────────────────────────────────────
+  // ── 6. Render ───────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-100 text-zinc-900">
 
@@ -196,6 +214,15 @@ export default function AvailabilitiesPage() {
                   <p className="text-xs text-gray-500">
                     Hora Fim: {a.end_time}
                   </p>
+
+                  {/* Botão eliminar */}
+                  <button
+                    onClick={() => eliminarAvailability(a)}
+                    disabled={removendoId === a.id_availability}
+                    className="mt-3 w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {removendoId === a.id_availability ? "A eliminar..." : "Eliminar"}
+                  </button>
                 </article>
               ))
             )}
