@@ -12,6 +12,12 @@ type SessionUser = {
   id_user_type: number;
 };
 
+type Professor = {
+  id_professor: number;
+  id_user: number;
+  name: string;
+};
+
 type CoachingListItem = {
   id_coaching: number;
   id_professor?: number;
@@ -55,27 +61,19 @@ function canAccessValidation(userType: number) {
   return userType !== 3;
 }
 
-function isPendingStatus(status: string | null) {
-  if (!status) return true;
-
-  const normalized = status.trim().toLowerCase();
+function isPendingForProfessor(coaching: CoachingListItem) {
+  if (typeof coaching.professor_validation === "boolean") {
+    return coaching.professor_validation === false;
+  }
+  if (coaching.professor_validation === null) {
+    return true;
+  }
+  const normalized = coaching.status?.trim().toLowerCase() ?? "";
   return (
     normalized.length === 0 ||
     normalized.includes("pend") ||
     normalized.includes("aguard")
   );
-}
-
-function isPendingForProfessor(coaching: CoachingListItem) {
-  if (typeof coaching.professor_validation === "boolean") {
-    return coaching.professor_validation === false;
-  }
-
-  if (coaching.professor_validation === null) {
-    return true;
-  }
-
-  return isPendingStatus(coaching.status);
 }
 
 async function getApiErrorMessage(response: Response, fallback: string) {
@@ -91,6 +89,7 @@ export default function ValidarAulasProfessorPage() {
   const apiBase = getApiBase();
 
   const [user, setUser] = useState<SessionUser | null>(null);
+  const [meuIdProfessor, setMeuIdProfessor] = useState<number | null>(null);
   const [coachings, setCoachings] = useState<CoachingListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -103,7 +102,8 @@ export default function ValidarAulasProfessorPage() {
     setAccessDenied(false);
 
     try {
-      const sessionResponse = await fetch(`${apiBase}/api/auth/me`, {
+      // 1. Sessão
+      const sessionResponse = await fetch(`${apiBase}/auth/me`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -113,14 +113,32 @@ export default function ValidarAulasProfessorPage() {
       }
 
       const sessionData = (await sessionResponse.json()) as { user: SessionUser };
-      setUser(sessionData.user);
+      const currentUser = sessionData.user;
+      setUser(currentUser);
 
-      if (!canAccessValidation(sessionData.user.id_user_type)) {
+      if (!canAccessValidation(currentUser.id_user_type)) {
         setCoachings([]);
         setAccessDenied(true);
         return;
       }
 
+      // 2. Se for professor (type 2), descobre o id_professor
+      let idProfessor: number | null = null;
+      if (currentUser.id_user_type === 2) {
+        const profRes = await fetch(`${apiBase}/professors`, {
+          credentials: "include",
+        });
+        if (profRes.ok) {
+          const profs = (await profRes.json()) as Professor[];
+          const prof = profs.find((p) => p.id_user === currentUser.id_user);
+          if (prof) {
+            idProfessor = prof.id_professor;
+            setMeuIdProfessor(prof.id_professor);
+          }
+        }
+      }
+
+      // 3. Busca todos os coachings
       const coachingResponse = await fetch(`${apiBase}/coachings`, {
         credentials: "include",
         cache: "no-store",
@@ -131,9 +149,21 @@ export default function ValidarAulasProfessorPage() {
       }
 
       const coachingsData = (await coachingResponse.json()) as CoachingListItem[];
-      setCoachings(coachingsData);
+
+      // 4. Filtra no frontend
+      // Admin (1) vê todos — professor (2) vê só os seus
+      const filtrados =
+        currentUser.id_user_type === 1
+          ? coachingsData
+          : coachingsData.filter((c) => c.id_professor === idProfessor);
+
+      setCoachings(filtrados);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Erro ao carregar a página de validação.");
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Erro ao carregar a página de validação."
+      );
     } finally {
       setLoading(false);
     }
@@ -158,7 +188,10 @@ export default function ValidarAulasProfessorPage() {
       });
 
       if (!detailResponse.ok) {
-        const message = await getApiErrorMessage(detailResponse, "Não foi possível ler os dados da aula.");
+        const message = await getApiErrorMessage(
+          detailResponse,
+          "Não foi possível ler os dados da aula."
+        );
         throw new Error(message);
       }
 
@@ -170,7 +203,9 @@ export default function ValidarAulasProfessorPage() {
       }
 
       const approved = action === "aceitar";
-      const nextStatus = approved ? "Aprovado pelo professor" : "Rejeitado pelo professor";
+      const nextStatus = approved
+        ? "Aprovado pelo professor"
+        : "Rejeitado pelo professor";
 
       const updateResponse = await fetch(`${apiBase}/coachings/${idCoaching}`, {
         method: "PUT",
@@ -192,13 +227,20 @@ export default function ValidarAulasProfessorPage() {
       });
 
       if (!updateResponse.ok) {
-        const message = await getApiErrorMessage(updateResponse, "Não foi possível atualizar a validação.");
+        const message = await getApiErrorMessage(
+          updateResponse,
+          "Não foi possível atualizar a validação."
+        );
         throw new Error(message);
       }
 
       await loadData();
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Falha ao validar o pedido.");
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : "Falha ao validar o pedido."
+      );
     } finally {
       setActiveActionById((prev) => ({ ...prev, [idCoaching]: null }));
     }
@@ -239,23 +281,27 @@ export default function ValidarAulasProfessorPage() {
         <section className="mb-8 rounded-2xl bg-white p-6 shadow">
           <h2 className="text-2xl font-bold text-gray-900">Validar Aulas</h2>
           <p className="mt-2 text-gray-600">Aprove ou rejeite pedidos de aulas</p>
-          {user ? (
+          {user && (
             <p className="mt-4 inline-flex rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700">
-              Professor: {user.name}
+              {user.id_user_type === 1 ? "Admin" : "Professor"}: {user.name}
             </p>
-          ) : null}
+          )}
         </section>
 
-        {error ? (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>
-        ) : null}
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            {error}
+          </div>
+        )}
 
-        {!loading && !error && accessDenied ? (
+        {!loading && !error && accessDenied && (
           <section className="rounded-2xl bg-white p-10 text-center shadow">
             <h3 className="text-xl font-semibold text-gray-900">Acesso restrito</h3>
-            <p className="mt-2 text-gray-600">Esta página não está disponível para encarregados de educação.</p>
+            <p className="mt-2 text-gray-600">
+              Esta página não está disponível para encarregados de educação.
+            </p>
           </section>
-        ) : null}
+        )}
 
         {loading ? (
           <section className="rounded-2xl bg-white p-8 text-center shadow">
@@ -264,13 +310,16 @@ export default function ValidarAulasProfessorPage() {
         ) : accessDenied ? null : aulasPendentes.length === 0 ? (
           <section className="rounded-2xl bg-white p-10 text-center shadow">
             <h3 className="text-xl font-semibold text-gray-900">Sem aulas pendentes</h3>
-            <p className="mt-2 text-gray-600">Não tem aulas aguardando validação.</p>
+            <p className="mt-2 text-gray-600">
+              Não tem aulas aguardando validação.
+            </p>
           </section>
         ) : (
           <section className="space-y-4">
             {aulasPendentes.map((coaching) => {
               const currentAction = activeActionById[coaching.id_coaching];
-              const blocked = currentAction === "aceitar" || currentAction === "rejeitar";
+              const blocked =
+                currentAction === "aceitar" || currentAction === "rejeitar";
 
               return (
                 <article
@@ -279,26 +328,38 @@ export default function ValidarAulasProfessorPage() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
-                      <p className="text-sm text-gray-500">Pedido #{coaching.id_coaching}</p>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Aula em {formatDate(coaching.date)} às {formatTime(coaching.start_time)}
-                      </h3>
-                      <p className="text-sm text-gray-600">Duração: {coaching.duration_minutes} minutos</p>
-                      <p className="text-sm text-gray-600">
-                        Valor: {typeof coaching.price === "number" ? `${coaching.price} EUR` : "N/D"}
+                      <p className="text-sm text-gray-500">
+                        Pedido #{coaching.id_coaching}
                       </p>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Aula em {formatDate(coaching.date)} às{" "}
+                        {formatTime(coaching.start_time)}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Duração: {coaching.duration_minutes} minutos
+                      </p>
+                      {/* Admin vê o nome do professor */}
+                      {user?.id_user_type === 1 && coaching.professor && (
+                        <p className="text-sm text-gray-600">
+                          Professor: {coaching.professor}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => atualizarValidacao(coaching.id_coaching, "rejeitar")}
+                        onClick={() =>
+                          atualizarValidacao(coaching.id_coaching, "rejeitar")
+                        }
                         disabled={blocked}
                         className="rounded-lg border border-red-300 bg-white px-4 py-2 text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {currentAction === "rejeitar" ? "A rejeitar..." : "Rejeitar"}
                       </button>
                       <button
-                        onClick={() => atualizarValidacao(coaching.id_coaching, "aceitar")}
+                        onClick={() =>
+                          atualizarValidacao(coaching.id_coaching, "aceitar")
+                        }
                         disabled={blocked}
                         className="rounded-lg bg-emerald-600 px-4 py-2 text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                       >

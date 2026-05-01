@@ -3,7 +3,7 @@ const router = express.Router()
 const authorize = require('./authorize')
 const { createCategory, readAllCategories, readCategoryById, updateCategory, deleteCategory } = require('../controllers/categoriesController')
 
-router.post('/',     authorize(1),       createCategory)      
+router.post('/',     authorize(1, 2, 3),       createCategory)      
 router.get('/',      authorize(1, 2, 3), readAllCategories)   
 router.get('/:id',   authorize(1, 2, 3), readCategoryById)    
 router.put('/:id',   authorize(1),       updateCategory)      

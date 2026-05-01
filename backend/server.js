@@ -8,7 +8,7 @@ const cookieParser = require('cookie-parser') // "middleman" que ajuda o express
 
 
 app.use(cors({ // permissão para o back falar com o front
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // URLs do frontend em dev
+  origin: 'http://localhost:3000', // URLs do frontend em dev
   credentials: true               // true para enviar os cookies
 }))
 app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos

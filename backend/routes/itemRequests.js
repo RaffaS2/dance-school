@@ -6,7 +6,7 @@ const { createItemRequest, readAllItemRequests, readItemRequestById, updateItemR
 router.post('/',     authorize(1, 2, 3), createItemRequest)   
 router.get('/',      authorize(1, 2, 3), readAllItemRequests)  
 router.get('/:id',   authorize(1, 2, 3), readItemRequestById)  
-router.put('/:id',   authorize(1),       updateItemRequest)    
+router.put('/:id',   authorize(1, 2, 3), updateItemRequest)    
 router.delete('/:id',authorize(1),       deleteItemRequest)    
 
 module.exports = router

@@ -26,6 +26,8 @@ const readAllAvailabilities = async (req, res) => {
                 a.date,
                 a.start_time,
                 a.end_time,
+                p.id_professor,
+                p.id_user,
                 u.name AS professor
             FROM availabilities a
             LEFT JOIN professors p ON a.id_professor = p.id_professor
@@ -40,7 +42,7 @@ const readAllAvailabilities = async (req, res) => {
     }
 }
 
-// lê o professor pelo id 
+// lê o availability pelo id 
 const readAvailabilityById = async (req, res) => {
     try {
         const { id } = req.params
@@ -54,7 +56,7 @@ const readAvailabilityById = async (req, res) => {
 // lê availabilities pelo id do professor
 const readAvailabilitiesByProfessor = async (req, res) => {
     try {
-        const { id_professor } = req.params  // comes from /professors/:id_professor/availabilities
+        const { id_professor } = req.params
         const result = await pool.query(
             'SELECT * FROM availabilities WHERE id_professor = $1', 
             [id_professor]
@@ -65,4 +67,24 @@ const readAvailabilitiesByProfessor = async (req, res) => {
     }
 }
 
-module.exports = { createAvailability, readAllAvailabilities, readAvailabilityById, readAvailabilitiesByProfessor}
+// elimina a availability pelo id
+const deleteAvailability = async (req, res) => {
+    try {
+        const { id } = req.params
+        const result = await pool.query(
+            'DELETE FROM availabilities WHERE id_availability = $1 RETURNING *',
+            [id]
+        )
+        res.status(204).json(result.rows[0])
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
+module.exports = { 
+    createAvailability, 
+    readAllAvailabilities, 
+    readAvailabilityById, 
+    readAvailabilitiesByProfessor,
+    deleteAvailability,
+}

@@ -15,7 +15,7 @@ export default function ApproveTeacher() {
       return
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/approve-teacher?token=${token}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/approve-teacher?token=${token}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {

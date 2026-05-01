@@ -110,7 +110,7 @@ export default function InventoryPage() {
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
 		try {
-			const res = await fetch(`${apiBase}/api/auth/me`, {
+			const res = await fetch(`${apiBase}/auth/me`, {
 				credentials: "include",
 			});
 
