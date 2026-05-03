@@ -225,6 +225,50 @@ exports.resetPassword = async (req, res) => {
   }
 }
 
+// ─── CHANGE PASSWORD (sessão autenticada) ───────────────────────────────────
+exports.changePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+  const userId = req.user?.id
+
+  if (!userId || !currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Preenche a palavra-passe atual e a nova palavra-passe.' })
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'A nova palavra-passe deve ter pelo menos 6 caracteres.' })
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT password FROM users WHERE id_user = $1',
+      [userId]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Utilizador não encontrado.' })
+    }
+
+    const user = result.rows[0]
+    const validCurrentPassword = await bcrypt.compare(currentPassword, user.password)
+
+    if (!validCurrentPassword) {
+      return res.status(400).json({ error: 'A palavra-passe atual está incorreta.' })
+    }
+
+    const newPasswordHash = await bcrypt.hash(newPassword, 10)
+
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id_user = $2',
+      [newPasswordHash, userId]
+    )
+
+    return res.status(200).json({ message: 'Palavra-passe atualizada com sucesso!' })
+  } catch (err) {
+    console.error('Erro no changePassword:', err)
+    return res.status(500).json({ error: 'Erro interno do servidor.' })
+  }
+}
+
 // ─── LOGOUT ──────────────────────────────────────────────────────────────────
 exports.logout = (req, res) => {
   res.clearCookie('token')
