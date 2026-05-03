@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "../lib/apiBase";
 
+
 type SessionUser = {
 	id_user: number;
 	name: string;
 	email: string;
 	id_user_type: number;
 };
+
 
 type ApiCoaching = {
 	id_coaching: number;
@@ -63,11 +65,10 @@ export default function CoachingPage() {
 	const [erro, setErro] = useState("");
 	const [cancelandoId, setCelandoId] = useState<number | null>(null);
 
-	// ── 1. Carregar sessão ──────────────────────────────────────────────────
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
 		try {
-			const res = await fetch(`${apiBase}/api/auth/me`, {
+			const res = await fetch(`${apiBase}/auth/me`, {
 				credentials: "include",
 			});
 			if (!res.ok) {
@@ -83,7 +84,9 @@ export default function CoachingPage() {
 		}
 	}, [apiBase]);
 
+
 	// ── 2. Carregar coachings ───────────────────────────────────────────────
+
 	const carregarCoachings = useCallback(
 		async (user: SessionUser) => {
 			setErro("");
@@ -124,6 +127,7 @@ export default function CoachingPage() {
 		},
 		[apiBase],
 	);
+
 
 	// ── 3. Cancelar coaching ────────────────────────────────────────────────
 	const cancelarCoaching = async (coaching: ApiCoaching) => {
@@ -178,6 +182,7 @@ export default function CoachingPage() {
 	};
 
 	// ── 4. Efeitos ──────────────────────────────────────────────────────────
+
 	useEffect(() => {
 		void carregarSessao();
 	}, [carregarSessao]);
@@ -191,9 +196,9 @@ export default function CoachingPage() {
 	}, [loadingSessao, utilizadorAtual, carregarCoachings]);
 
 	// ── 5. Render ───────────────────────────────────────────────────────────
+
 	return (
 		<div className="min-h-screen bg-gray-100 text-zinc-900">
-			{/* Header */}
 			<header className="mb-6 bg-white px-6 py-4 shadow">
 				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
 					<div className="flex items-center gap-4">
@@ -228,7 +233,6 @@ export default function CoachingPage() {
 			</header>
 
 			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
-				{/* Aviso de sessão */}
 				{!loadingSessao && !utilizadorAtual && (
 					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
 						Sessão não encontrada. Inicia sessão em{" "}
@@ -239,21 +243,18 @@ export default function CoachingPage() {
 					</div>
 				)}
 
-				{/* Loading */}
 				{loading && (
 					<div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow">
 						A carregar coachings...
 					</div>
 				)}
 
-				{/* Erro */}
 				{erro && (
 					<div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 shadow">
 						{erro}
 					</div>
 				)}
 
-				{/* Resumo */}
 				{!loading && utilizadorAtual && (
 					<div className="rounded-xl bg-white p-5 shadow">
 						<h2 className="text-lg font-semibold">Resumo</h2>
@@ -263,7 +264,6 @@ export default function CoachingPage() {
 					</div>
 				)}
 
-				{/* Lista de coachings */}
 				{!loading && utilizadorAtual && (
 					<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 						{coachings.length === 0 ? (

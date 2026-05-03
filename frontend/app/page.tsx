@@ -25,7 +25,7 @@ export default function HomePage() {
   const carregarSessao = useCallback(async () => {
     setLoadingSessao(true);
     try {
-      const res = await fetch(`${apiBase}/api/auth/me`, {
+      const res = await fetch(`${apiBase}/auth/me`, {
         credentials: "include",
       });
 
@@ -52,7 +52,7 @@ export default function HomePage() {
 
   async function terminarSessao() {
     try {
-      await fetch(`${apiBase}/api/auth/logout`, {
+      await fetch(`${apiBase}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

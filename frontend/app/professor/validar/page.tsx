@@ -103,7 +103,7 @@ export default function ValidarAulasProfessorPage() {
 
     try {
       // 1. Sessão
-      const sessionResponse = await fetch(`${apiBase}/api/auth/me`, {
+      const sessionResponse = await fetch(`${apiBase}/auth/me`, {
         credentials: "include",
         cache: "no-store",
       });

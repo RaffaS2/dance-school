@@ -1,5 +1,3 @@
-// CRUD COMPLETO - CREATE, READ, UPDATE E DELETE
-
 const pool = require('../db')
 
 const createUser = async (req, res) => {

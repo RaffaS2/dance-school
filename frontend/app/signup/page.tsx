@@ -9,28 +9,24 @@ export default function Register() {
   const router = useRouter()
   const apiBase = getApiBase()
 
-  // Estado dos campos do formulário
   const [name, setName] = useState('')
   const [apelido, setApelido] = useState('')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('') // NOVO: número de telefone
+  const [phone, setPhone] = useState('')
+  const [userType, setUserType] = useState('3')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [terms, setTerms] = useState(false)
-
-  // Estado de feedback
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleRegister = async () => {
     setError('')
 
-    // Validações no frontend antes de chamar o backend
     if (!name || !apelido || !email || !phone || !password || !confirmPassword) {
       setError('Por favor preenche todos os campos.')
       return
     }
-    // NOVO: valida que o telefone só tem dígitos e tem entre 9 e 15 caracteres
     if (!/^\d{9,15}$/.test(phone)) {
       setError('Número de telefone inválido. Usa apenas dígitos (9 a 15).')
       return
@@ -51,15 +47,16 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${apiBase}/api/auth/register`, {
+      const res = await fetch(`${apiBase}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           name: `${name} ${apelido}`,
           email,
-          phone_number: phone, // NOVO: enviado para o backend
+          phone,        
           password,
+          id_user_type: parseInt(userType),
         }),
       })
 
@@ -70,8 +67,11 @@ export default function Register() {
         return
       }
 
-      // Registo com sucesso → redireciona para o login
-      router.push('/login')
+      if (data.pending) {
+        router.push('/pendingapproval')
+      } else {
+        router.push('/login')
+      }
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
     } finally {
@@ -107,7 +107,6 @@ export default function Register() {
         <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">Criar conta</h2>
         <p className="text-[13px] text-[#7a7a7a] mb-7">Junta-te à comunidade EntArtes</p>
 
-        {/* Mensagem de erro */}
         {error && (
           <div className="mb-5 px-4 py-3 rounded-md bg-[rgba(212,83,126,0.06)] border border-[rgba(212,83,126,0.2)] text-[12px] text-[#c0405f]">
             {error}
@@ -150,17 +149,38 @@ export default function Register() {
           />
         </div>
 
-        {/* NOVO: Número de Telefone */}
+        {/* Telefone */}
         <div className="mb-5">
           <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Número de Telefone</label>
           <input
             type="tel"
             placeholder="912 345 678"
             value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))} // remove espaços automaticamente
+            onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)]"
           />
         </div>
+
+        {/* Cargo */}
+        <div className="mb-5">
+          <label className="block text-[10px] tracking-[0.15em] uppercase text-[#9a9a9a] mb-2">Cargo</label>
+          <select
+            value={userType}
+            onChange={(e) => setUserType(e.target.value)}
+            className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)] cursor-pointer"
+          >
+            <option value="3">Encarregado de Educação</option>
+            <option value="2">Professor</option>
+          </select>
+        </div>
+
+        {/* Aviso Professores */}
+        {userType === '2' && (
+          <div className="mb-5 px-4 py-3 rounded-md bg-[rgba(212,83,126,0.06)] border border-[rgba(212,83,126,0.15)] text-[12px] text-[#7a5a6a]">
+            <span className="mr-1">⚠️</span>
+            As contas de Professor requerem aprovação da coordenação. Receberás um email quando a tua conta for ativada.
+          </div>
+        )}
 
         {/* Palavra-passe */}
         <div className="mb-5">
@@ -186,7 +206,7 @@ export default function Register() {
           />
         </div>
 
-        {/* Termos e condições */}
+        {/* Termos */}
         <div className="flex items-start gap-2.5 mb-6">
           <input
             type="checkbox"
@@ -211,7 +231,6 @@ export default function Register() {
           {loading ? 'A criar conta...' : 'Criar Conta'}
         </button>
 
-        {/* Divider */}
         <div className="flex items-center justify-center gap-2.5 w-full my-6">
           <div className="flex-1 h-px bg-[#eeeeee]" />
           <span className="text-[#bbbbbb] text-xs">ou</span>

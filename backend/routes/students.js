@@ -1,11 +1,13 @@
 const express = require('express')
 const router = express.Router()
-const { createStudent, readAllStudents, readStudentById, updateStudent, deleteStudent } = require('../controllers/studentsController')
+const authorize = require('./authorize')
+const { createStudent, readAllStudents, readStudentById, updateStudent, deleteStudent, readMyStudent } = require('../controllers/studentsController')
 
-router.post('/', createStudent)
-router.get('/', readAllStudents)
-router.get('/:id', readStudentById)
-router.put('/:id', updateStudent)
-router.delete('/:id', deleteStudent)
+router.post('/',      authorize(1),          createStudent)
+router.get('/',       authorize(1, 2),        readAllStudents)
+router.get('/me',     authorize(3),           readMyStudent)
+router.get('/:id',   authorize(1, 2, 3),     readStudentById)
+router.put('/:id',   authorize(1),           updateStudent)
+router.delete('/:id', authorize(1),          deleteStudent)
 
 module.exports = router

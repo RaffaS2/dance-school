@@ -1,11 +1,12 @@
 const express = require('express')
 const router = express.Router()
+const authorize = require('./authorize')
 const { createInvoice, readAllInvoices, readInvoiceById, updateInvoice, deleteInvoice } = require('../controllers/invoicesController')
 
-router.post('/', createInvoice)
-router.get('/', readAllInvoices)
-router.get('/:id', readInvoiceById)
-router.put('/:id', updateInvoice)
-router.delete('/:id', deleteInvoice)
+router.post('/',     authorize(1),       createInvoice)       
+router.get('/',      authorize(1, 2, 3), readAllInvoices)     
+router.get('/:id',   authorize(1, 2, 3), readInvoiceById)    
+router.put('/:id',   authorize(1),       updateInvoice)       
+router.delete('/:id',authorize(1),       deleteInvoice)       
 
 module.exports = router
