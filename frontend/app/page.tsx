@@ -86,7 +86,7 @@ export default function HomePage() {
             </button>
           ) : utilizador ? (
             <>
-              <Link href="/dashboard">
+              <Link href="/perfil">
                 <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
                   {utilizador.name}
                 </button>
