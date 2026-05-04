@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "../lib/apiBase";
@@ -64,30 +63,8 @@ export default function PerfilPage() {
     void loadSession();
   }, [loadSession]);
 
-  async function logout() {
-    try {
-      await fetch(`${apiBase}/auth/logout`, { method: "POST", credentials: "include" });
-    } finally {
-      window.location.href = "/";
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="flex justify-between items-center px-6 py-4 bg-white shadow">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="Ent'Artes Logo" width={144} height={48} className="h-12 w-auto object-contain" />
-          <h1 className="text-xl font-bold">Perfil</h1>
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/">
-            <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">Página Inicial</button>
-          </Link>
-          <button onClick={logout} className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">Sair</button>
-        </div>
-      </header>
-
       <main className="mx-auto w-full max-w-3xl px-6 py-10">
         <section className="rounded-2xl bg-white p-6 shadow">
           {loading ? (
