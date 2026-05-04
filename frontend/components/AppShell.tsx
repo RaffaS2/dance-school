@@ -164,6 +164,13 @@ function getNavbarForPath(pathname: string) {
 		};
 	}
 
+	if (pathname === "/admin/studios") {
+		return {
+			title: "Gerenciar Estúdios e Modalidades",
+			links: sharedLinks,
+		};
+	}
+
 	return null;
 }
 
