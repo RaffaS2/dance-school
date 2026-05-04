@@ -369,9 +369,9 @@ export default function InventoryPage() {
 	}
 
 	async function removerItem(item: InventoryItem) {
-		const emUsoAgora = requisicaoAtivaPorItem.has(item.id) || Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
-		if (emUsoAgora) {
-			alert("Não é possível remover este item enquanto estiver em uso.");
+		const emPosseDoUtilizadorAtual = requisicaoAtivaPorItem.has(item.id);
+		if (emPosseDoUtilizadorAtual) {
+			alert("Não é possível remover este item enquanto estiver em teu poder.");
 			return;
 		}
 
@@ -607,7 +607,7 @@ export default function InventoryPage() {
 									{item.adicionadoPorUtilizador && !emPosseDoUtilizador && (
 										<button
 											onClick={() => removerItem(item)}
-											disabled={loadingSessao || itemBloqueado || itemEmAcao === item.id}
+										disabled={loadingSessao || itemEmAcao === item.id}
 											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
 										>
 											Remover Item
