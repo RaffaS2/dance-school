@@ -118,6 +118,21 @@ function getNavbarForPath(pathname: string) {
 		};
 	}
 
+	if (pathname === "/perfil/editar") {
+		return {
+			title: "Editar Perfil",
+			links: sharedLinks,
+			actions: (
+				<Link
+					href="/perfil"
+					className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+				>
+					Voltar ao perfil
+				</Link>
+			),
+		};
+	}
+
 	if (pathname === "/perfil/alterar-password") {
 		return {
 			title: "Alterar palavra-passe",
