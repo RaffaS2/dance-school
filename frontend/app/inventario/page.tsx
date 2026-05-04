@@ -12,6 +12,7 @@ type ApiItem = {
 	name: string;
 	status: number;
 	id_category: number;
+	image_url?: string;
 };
 
 type ApiCategory = {
@@ -36,6 +37,7 @@ type InventoryItem = {
 	status: number;
 	visual: string;
 	adicionadoPorUtilizador: boolean;
+	imagem_url?: string;
 };
 
 type SessionUser = {
@@ -106,6 +108,9 @@ export default function InventoryPage() {
 
 	const [novoNome, setNovoNome] = useState("");
 	const [novaCategoria, setNovaCategoria] = useState("");
+	const [novaImagemUrl, setNovaImagemUrl] = useState("");
+
+	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
@@ -162,6 +167,7 @@ export default function InventoryPage() {
 					status: item.status,
 					visual: initials(item.name),
 					adicionadoPorUtilizador: true,
+					imagem_url: item.image_url,
 				})),
 			);
 		} catch (error) {
@@ -350,6 +356,7 @@ export default function InventoryPage() {
 					name: novoNome.trim(),
 					status: 1,
 					id_category: idCategoria,
+					image_url: novaImagemUrl.trim() || null,
 				}),
 			});
 
@@ -359,6 +366,7 @@ export default function InventoryPage() {
 			}
 			setNovoNome("");
 			setNovaCategoria("");
+			setNovaImagemUrl("");
 			await carregarDados();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Não foi possível guardar o item.";
@@ -506,6 +514,12 @@ export default function InventoryPage() {
 								placeholder="Categoria (ex: Material Didático)"
 								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
+							<input
+								value={novaImagemUrl}
+								onChange={(e) => setNovaImagemUrl(e.target.value)}
+								placeholder="URL da imagem (opcional)"
+								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
+							/>
 						</div>
 
 						<button
@@ -562,6 +576,15 @@ export default function InventoryPage() {
 
 						return (
 							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+								{item.imagem_url && (
+									<div className="mb-3 overflow-hidden rounded-lg">
+										<img
+											src={item.imagem_url}
+											alt={item.nome}
+											className="h-32 w-full object-cover"
+										/>
+									</div>
+								)}
 								<div className="mb-3 flex items-center justify-between">
 									<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-xs font-bold text-white">
 										{item.visual}

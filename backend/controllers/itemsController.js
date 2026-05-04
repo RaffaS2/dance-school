@@ -5,10 +5,10 @@ const pool = require('../db')
 // cria o item
 const createItem = async (req, res) => {
     try {
-        const { name, status, id_category } = req.body
+        const { name, status, id_category, image_url } = req.body
         const result = await pool.query(
-            'INSERT INTO items (name, status, id_category) VALUES ($1, $2, $3) RETURNING *',
-            [name, status, id_category]
+            'INSERT INTO items (name, status, id_category, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
+            [name, status, id_category, image_url || null]
         )
         res.status(201).json(result.rows[0])
     } catch (error) {
@@ -41,10 +41,10 @@ const readItemById = async (req, res) => {
 const updateItem = async (req, res) => {
     try {
         const { id } = req.params
-        const { name, status, id_category } = req.body
+        const { name, status, id_category, image_url } = req.body
         const result = await pool.query(
-            'UPDATE items SET name = $1, status = $2, id_category = $3 WHERE id_item = $4 RETURNING *',
-            [name, status, id_category, id]
+            'UPDATE items SET name = $1, status = $2, id_category = $3, image_url = $4 WHERE id_item = $5 RETURNING *',
+            [name, status, id_category, image_url || null, id]
         )
         res.status(200).json(result.rows[0])
     } catch (error) {
