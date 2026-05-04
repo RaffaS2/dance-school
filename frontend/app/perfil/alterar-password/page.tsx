@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getApiBase } from "../../lib/apiBase";
 
 export default function AlterarPasswordPage() {
@@ -68,25 +67,8 @@ export default function AlterarPasswordPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="flex justify-between items-center px-6 py-4 bg-white shadow">
-        <div className="flex items-center gap-4">
-          <Image src="/logo.png" alt="Ent'Artes Logo" width={144} height={48} className="h-12 w-auto object-contain" />
-          <h1 className="text-xl font-bold">Alterar palavra-passe</h1>
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/perfil">
-            <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">Voltar ao perfil</button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-xl px-6 py-10">
+      <main className="mx-auto w-full max-w-3xl px-6 pt-6 pb-8">
         <section className="rounded-2xl bg-white p-6 shadow space-y-5">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Alterar palavra-passe</h2>
-            <p className="mt-2 text-sm text-gray-600">Confirma a palavra-passe atual e escolhe uma nova palavra-passe para a tua conta.</p>
-          </div>
 
           {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
           {success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-700">{success}</div>}
@@ -98,7 +80,7 @@ export default function AlterarPasswordPage() {
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-gray-500"
                 placeholder="••••••••"
               />
             </div>
@@ -109,7 +91,7 @@ export default function AlterarPasswordPage() {
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-gray-500"
                 placeholder="••••••••"
               />
             </div>
@@ -120,21 +102,32 @@ export default function AlterarPasswordPage() {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-gray-500"
                 placeholder="••••••••"
               />
             </div>
           </div>
 
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full rounded-lg bg-black px-4 py-3 text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "A guardar..." : "Guardar nova palavra-passe"}
-          </button>
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="rounded-lg bg-slate-900 px-6 py-2 text-white font-medium hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "A guardar..." : "Guardar nova palavra-passe"}
+            </button>
+            <Link href="/perfil">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 font-medium hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+            </Link>
+          </div>
         </section>
       </main>
     </div>
   );
 }
+
