@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import AppNavbar from "@/components/AppNavbar";
+import AppFooter from "@/components/AppFooter";
 
 type AppShellProps = {
 	children: ReactNode;
@@ -159,6 +160,7 @@ export default function AppShell({ children }: AppShellProps) {
 		<>
 			{navbar ? <AppNavbar {...navbar} /> : null}
 			{children}
+			<AppFooter />
 		</>
 	);
 }
