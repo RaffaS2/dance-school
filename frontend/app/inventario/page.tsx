@@ -577,7 +577,10 @@ export default function InventoryPage() {
 						return (
 							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
 								{item.imagem_url && (
-									<div className="mb-3 overflow-hidden rounded-lg">
+									<div 
+										className="mb-3 cursor-pointer overflow-hidden rounded-lg hover:opacity-80 transition-opacity"
+										onClick={() => setImagemAmpliada(item.imagem_url!)}
+									>
 										<img
 											src={item.imagem_url}
 											alt={item.nome}
@@ -642,6 +645,30 @@ export default function InventoryPage() {
 					})}
 				</section>
 			</div>
+
+			{imagemAmpliada && (
+				<div 
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+					onClick={() => setImagemAmpliada(null)}
+				>
+					<div 
+						className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-lg bg-white"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<button
+							onClick={() => setImagemAmpliada(null)}
+							className="absolute right-2 top-2 rounded-lg bg-gray-800/80 p-2 text-white hover:bg-gray-900 z-10"
+						>
+							✕
+						</button>
+						<img
+							src={imagemAmpliada}
+							alt="Imagem ampliada"
+							className="h-auto w-full"
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
