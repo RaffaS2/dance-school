@@ -54,15 +54,38 @@ const updateItem = async (req, res) => {
 
 // elimina o item pelo id
 const deleteItem = async (req, res) => {
+    const client = await pool.connect()
+
     try {
         const { id } = req.params
-        const result = await pool.query(
+        await client.query('BEGIN')
+
+        const activeRequests = await client.query(
+            'SELECT id_item_request FROM item_requests WHERE id_item = $1 AND return_date IS NULL',
+            [id]
+        )
+
+        if (activeRequests.rows.length > 0) {
+            await client.query('ROLLBACK')
+            return res.status(409).json({
+                error: 'Não é possível remover este item enquanto existir uma requisição ativa.'
+            })
+        }
+
+        await client.query('DELETE FROM item_requests WHERE id_item = $1', [id])
+
+        const result = await client.query(
             'DELETE FROM items WHERE id_item = $1 RETURNING *',
             [id]
         )
-        res.status(204).json(result.rows[0])
+
+        await client.query('COMMIT')
+        return res.status(200).json(result.rows[0])
     } catch (error) {
+        await client.query('ROLLBACK')
         res.status(500).json({ error: error.message })
+    } finally {
+        client.release()
     }
 }
 
