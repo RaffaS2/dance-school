@@ -23,7 +23,7 @@ const readAllAvailabilities = async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 a.id_availability,
-                a.date,
+                TO_CHAR(a.date, 'YYYY-MM-DD') AS date,
                 a.start_time,
                 a.end_time,
                 p.id_professor,
@@ -46,7 +46,11 @@ const readAllAvailabilities = async (req, res) => {
 const readAvailabilityById = async (req, res) => {
     try {
         const { id } = req.params
-        const result = await pool.query('SELECT * FROM availabilities WHERE id_availability = $1', [id])
+        const result = await pool.query(
+            `SELECT id_availability, TO_CHAR(date, 'YYYY-MM-DD') AS date, start_time, end_time, recurring, id_professor 
+             FROM availabilities WHERE id_availability = $1`,
+            [id]
+        )
         res.json(result.rows)
     } catch (error) {
         res.status(500).json({ error: error.message })
@@ -58,7 +62,8 @@ const readAvailabilitiesByProfessor = async (req, res) => {
     try {
         const { id_professor } = req.params
         const result = await pool.query(
-            'SELECT * FROM availabilities WHERE id_professor = $1', 
+            `SELECT id_availability, TO_CHAR(date, 'YYYY-MM-DD') AS date, start_time, end_time, recurring, id_professor 
+             FROM availabilities WHERE id_professor = $1`,
             [id_professor]
         )
         res.json(result.rows)

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { getApiBase } from "../../lib/apiBase";
 
 export default function NovaDisponibilidadeForm({ professores }: any) {
   const [selectedProfessor, setSelectedProfessor] = useState("");
@@ -9,6 +9,30 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [userType, setUserType] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`${getApiBase()}/auth/me`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        const user = data.user
+        setUserType(user.id_user_type)
+
+        if (user.id_user_type === 2) {
+          fetch(`${getApiBase()}/professors`, { credentials: "include" })
+            .then((res) => res.json())
+            .then((profs) => {
+              const meuPerfil = profs.find((p: any) => p.id_user === user.id_user)
+              if (meuPerfil) {
+                setSelectedProfessor(String(meuPerfil.id_professor))
+              }
+            })
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
   const handleSubmit = async () => {
     if (!selectedProfessor || !date || !startTime || !endTime) {
@@ -17,16 +41,14 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
     }
 
     try {
-      // converter data para formato correto (YYYY-MM-DD)
-      const formattedDate = new Date(date).toISOString().split("T")[0];
+      const formattedDate = date;
 
-      const res = await fetch("http://localhost:3001/availabilities", {
+      const res = await fetch(`${getApiBase()}/availabilities`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
-          id_professor: Number(selectedProfessor), //  importante
+          id_professor: Number(selectedProfessor),
           date: formattedDate,
           start_time: startTime,
           end_time: endTime,
@@ -36,20 +58,17 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
 
       const data = await res.json();
 
-      console.log("RESPOSTA BACKEND:", data);
-
       if (!res.ok) {
         throw new Error(data.error || "Erro ao criar disponibilidade");
       }
 
       alert("Disponibilidade criada com sucesso!");
 
-      // limpar form
-      setSelectedProfessor("");
       setDate("");
       setStartTime("");
       setEndTime("");
       setRecurring(false);
+      if (userType === 1) setSelectedProfessor("");
 
     } catch (error: any) {
       console.error("ERRO:", error);
@@ -57,17 +76,18 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
     }
   };
 
+  if (loading) return <p className="text-center text-gray-500">A carregar...</p>
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
-
-      {/* Form */}
       <div className="bg-white p-6 rounded shadow max-w-md">
 
-        {/* Professor */}
+        {/* Selector de professor — desativado para Professor, ativo para Admin */}
         <select
-          className="w-full mb-4 p-2 border rounded"
+          className="w-full mb-4 p-2 border rounded bg-gray-100 text-gray-500 disabled:cursor-not-allowed"
           value={selectedProfessor}
           onChange={(e) => setSelectedProfessor(e.target.value)}
+          disabled={userType === 2}
         >
           <option value="">Selecionar Professor</option>
           {professores.map((p: any) => (
@@ -100,16 +120,6 @@ export default function NovaDisponibilidadeForm({ professores }: any) {
           value={endTime}
           onChange={(e) => setEndTime(e.target.value)}
         />
-
-        {/* Recorrente */}
-        <label className="flex items-center gap-2 mb-4">
-          <input
-            type="checkbox"
-            checked={recurring}
-            onChange={(e) => setRecurring(e.target.checked)}
-          />
-          Recorrente
-        </label>
 
         {/* Botão */}
         <button

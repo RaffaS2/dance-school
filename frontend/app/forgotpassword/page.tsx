@@ -11,7 +11,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    const apiBase = getApiBase() // ✅ Movido para dentro do handleSubmit
+    const apiBase = getApiBase() 
     setError('')
 
     if (!email) {

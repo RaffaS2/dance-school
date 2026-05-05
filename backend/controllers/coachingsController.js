@@ -24,7 +24,7 @@ const readAllCoachings = async (req, res) => {
                 c.id_coaching,
                 c.id_professor,
                 u.name AS professor,
-                c.date,
+                TO_CHAR(c.date, 'YYYY-MM-DD') AS date,
                 c.start_time,
                 c.duration_minutes,
                 c.status,
@@ -46,7 +46,11 @@ const readAllCoachings = async (req, res) => {
 const readCoachingById = async (req, res) => {
     try {
         const { id } = req.params
-        const result = await pool.query('SELECT * FROM coachings WHERE id_coaching = $1', [id])
+        const result = await pool.query(
+            `SELECT id_coaching, id_professor, id_studio, id_modality, TO_CHAR(date, 'YYYY-MM-DD') AS date, start_time, duration_minutes, status, price, professor_validation, guardian_validation, coordination_validation 
+             FROM coachings WHERE id_coaching = $1`,
+            [id]
+        )
         res.json(result.rows[0])
     } catch (error) {
         res.status(500).json({ error: error.message })
@@ -91,7 +95,7 @@ const readCoachingsByProfessor = async (req, res) => {
                 u.name AS professor,
                 m.name AS modalidade,
                 s.name AS estudio,
-                c.date,
+                TO_CHAR(c.date, 'YYYY-MM-DD') AS date,
                 c.start_time,
                 c.duration_minutes,
                 c.status,
@@ -120,7 +124,7 @@ const readCoachingsByGuardian = async (req, res) => {
                 m.name AS modalidade,
                 s.name AS estudio,
                 st.name AS aluno,
-                c.date,
+                TO_CHAR(c.date, 'YYYY-MM-DD') AS date,
                 c.start_time,
                 c.duration_minutes,
                 c.status,
