@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { getApiBase } from '../lib/apiBase'
 
 export default function ApproveTeacher() {
   const searchParams = useSearchParams()
@@ -15,7 +16,7 @@ export default function ApproveTeacher() {
       return
     }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/approve-teacher?token=${token}`)
+    fetch(`${getApiBase()}/auth/approve-teacher?token=${token}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.error) {
