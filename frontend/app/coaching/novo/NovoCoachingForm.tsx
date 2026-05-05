@@ -4,50 +4,105 @@ import { useEffect, useState } from "react";
 
 export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: any) {
   const utilizador = sessao?.user;
-  const tipoUtilizador = utilizador?.id_user_type; // 1=admin, 2=professor, 3=aluno/encarregado
+  const tipoUtilizador = utilizador?.id_user_type;
 
   const [selectedProfessor, setSelectedProfessor] = useState("");
   const [selectedAluno, setSelectedAluno] = useState("");
   const [selectedModalidade, setSelectedModalidade] = useState("");
   const [selectedEstudio, setSelectedEstudio] = useState("");
-  const [horarios, setHorarios] = useState<any[]>([]);
+
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<any[]>([]);
+  const [horariosProfConflito, setHorariosProfConflito] = useState<any[]>([]);
+  const [horariosEstudioConflito, setHorariosEstudioConflito] = useState<any[]>([]);
+
   const [horarioSelecionado, setHorarioSelecionado] = useState("");
 
-  // Pré-selecionar professor se o utilizador for professor
+  // professor auto
   useEffect(() => {
     if (tipoUtilizador === 2 && utilizador) {
-      const profArray = Array.isArray(prof) ? prof : [];
-      const profEncontrado = profArray.find((p: any) => p.id_user === utilizador.id_user);
+      const profEncontrado = prof.find((p: any) => p.id_user === utilizador.id_user);
       if (profEncontrado) {
         const id = String(profEncontrado.id_professor);
         setSelectedProfessor(id);
-        void fetchHorarios(id);
+        fetchHorarios(id);
       }
     }
   }, [tipoUtilizador, utilizador, prof]);
 
-  // Pré-selecionar aluno se o utilizador for aluno/encarregado
+  // aluno auto
   useEffect(() => {
     if (tipoUtilizador === 3 && utilizador) {
-      const alunosArray = Array.isArray(alunos) ? alunos : [];
-      const alunoEncontrado = alunosArray.find((a: any) => a.id_user === utilizador.id_user);
-      if (alunoEncontrado) {
-        setSelectedAluno(String(alunoEncontrado.id_student));
+      const aluno = alunos.find((a: any) => a.id_user === utilizador.id_user);
+      if (aluno) {
+        setSelectedAluno(String(aluno.id_student));
       }
     }
   }, [tipoUtilizador, utilizador, alunos]);
 
+  // atualizar quando muda estúdio
+  useEffect(() => {
+    if (selectedProfessor) {
+      fetchHorarios(selectedProfessor);
+    }
+  }, [selectedEstudio]);
+
   const fetchHorarios = async (id: string) => {
-    setHorarios([]);
     setHorarioSelecionado("");
+    setHorariosDisponiveis([]);
+    setHorariosProfConflito([]);
+    setHorariosEstudioConflito([]);
+
     if (!id) return;
+
     try {
-      const res = await fetch(
-        `http://localhost:3001/api/professors/${id}/availabilities`,
-        { credentials: "include" }
-      );
-      const data = await res.json();
-      setHorarios(Array.isArray(data) ? data : []);
+      const [avRes, coachRes] = await Promise.all([
+        fetch(`http://localhost:3001/api/professors/${id}/availabilities`, {
+          credentials: "include",
+        }),
+        fetch(`http://localhost:3001/api/coachings`, {
+          credentials: "include",
+        }),
+      ]);
+
+      const avData = await avRes.json();
+      const coachings = await coachRes.json();
+
+      const livres: any[] = [];
+      const conflitoProf: any[] = [];
+      const conflitoEstudio: any[] = [];
+
+      avData.forEach((h: any) => {
+        const data = h.date?.slice(0, 10);
+        const hora = h.start_time.slice(0, 5);
+
+        const conflitoProfessor = coachings.find(
+          (c: any) =>
+            c.date === data &&
+            c.start_time.slice(0, 5) === hora &&
+            c.id_professor == id &&
+            c.status !== "cancelado"
+        );
+
+        const conflitoEstudio = coachings.find(
+          (c: any) =>
+            c.date === data &&
+            c.start_time.slice(0, 5) === hora &&
+            c.id_studio == selectedEstudio &&
+            c.status !== "cancelado"
+        );
+
+        if (conflitoProfessor) {
+          conflitoProf.push(h);
+        } else if (conflitoEstudio) {
+          conflitoEstudio.push(h);
+        } else {
+          livres.push(h);
+        }
+      });
+
+      setHorariosDisponiveis(livres);
+      setHorariosProfConflito(conflitoProf);
+      setHorariosEstudioConflito(conflitoEstudio);
     } catch (err) {
       console.error(err);
     }
@@ -55,7 +110,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
 
   const handleProfessorChange = async (id: string) => {
     setSelectedProfessor(id);
-    await fetchHorarios(id);
+    fetchHorarios(id);
   };
 
   const handleSubmit = async () => {
@@ -89,7 +144,12 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
         }),
       });
 
-      const coaching = await res.json();
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error);
+        return;
+      }
 
       await fetch("http://localhost:3001/api/studentCoachings", {
         method: "POST",
@@ -97,7 +157,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
         credentials: "include",
         body: JSON.stringify({
           id_student: selectedAluno,
-          id_coaching: coaching.id_coaching,
+          id_coaching: data.id_coaching,
         }),
       });
 
@@ -108,39 +168,34 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
     }
   };
 
-  const profArray = Array.isArray(prof) ? prof : [];
-  const alunosArray = Array.isArray(alunos) ? alunos : [];
-  const modsArray = Array.isArray(mods) ? mods : [];
-  const estArray = Array.isArray(est) ? est : [];
-
   return (
     <div className="p-6 max-w-lg mx-auto bg-white rounded shadow">
       <h2 className="text-xl font-bold mb-4">Novo Coaching</h2>
 
-      {/* Professor — bloqueado se for professor */}
+      {/* Professor */}
       <select
-        className="w-full mb-3 p-2 border rounded disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+        className="w-full mb-3 p-2 border rounded"
         value={selectedProfessor}
         disabled={tipoUtilizador === 2}
         onChange={(e) => handleProfessorChange(e.target.value)}
       >
         <option value="">Selecionar Professor</option>
-        {profArray.map((p: any) => (
+        {prof.map((p: any) => (
           <option key={p.id_professor} value={p.id_professor}>
             {p.name}
           </option>
         ))}
       </select>
 
-      {/* Aluno — bloqueado se for aluno/encarregado */}
+      {/* Aluno */}
       <select
-        className="w-full mb-3 p-2 border rounded disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+        className="w-full mb-3 p-2 border rounded"
         value={selectedAluno}
         disabled={tipoUtilizador === 3}
         onChange={(e) => setSelectedAluno(e.target.value)}
       >
         <option value="">Selecionar Aluno</option>
-        {alunosArray.map((a: any) => (
+        {alunos.map((a: any) => (
           <option key={a.id_student} value={a.id_student}>
             {a.name}
           </option>
@@ -154,7 +209,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
         onChange={(e) => setSelectedModalidade(e.target.value)}
       >
         <option value="">Selecionar Modalidade</option>
-        {modsArray.map((m: any) => (
+        {mods.map((m: any) => (
           <option key={m.id_modality} value={m.id_modality}>
             {m.name}
           </option>
@@ -168,25 +223,27 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
         onChange={(e) => setSelectedEstudio(e.target.value)}
       >
         <option value="">Selecionar Estúdio</option>
-        {estArray.map((e: any) => (
+        {est.map((e: any) => (
           <option key={e.id_studio} value={e.id_studio}>
             {e.name}
           </option>
         ))}
       </select>
 
-      {/* Horários */}
+      {/* HORÁRIOS */}
       {selectedProfessor && (
         <div className="mb-4">
           <p className="mb-2 font-medium">Horários disponíveis:</p>
-          <div className="flex gap-2 flex-wrap">
-            {horarios.length === 0 ? (
+
+          <div className="flex gap-2 flex-wrap mb-3">
+            {horariosDisponiveis.length === 0 ? (
               <p className="text-sm text-gray-400">Sem horários disponíveis.</p>
             ) : (
-              horarios.map((h: any) => {
+              horariosDisponiveis.map((h: any) => {
                 const data = h.date?.slice(0, 10);
                 const hora = h.start_time.slice(0, 5);
                 const valor = `${data} ${hora}`;
+
                 return (
                   <button
                     key={valor}
@@ -194,7 +251,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
                     className={`px-3 py-1 rounded ${
                       horarioSelecionado === valor
                         ? "bg-black text-white"
-                        : "bg-gray-400 text-white"
+                        : "bg-green-600 text-white"
                     }`}
                   >
                     {data} - {hora}
@@ -203,10 +260,49 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
               })
             )}
           </div>
+
+          {/* Conflito Professor */}
+          {horariosProfConflito.length > 0 && (
+            <div className="mb-2">
+              <p className="text-sm text-red-600 font-medium">
+                Horários indisponíveis por conflito com o professor:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {horariosProfConflito.map((h: any) => {
+                  const data = h.date?.slice(0, 10);
+                  const hora = h.start_time.slice(0, 5);
+                  return (
+                    <span key={data + hora} className="bg-red-200 px-2 py-1 text-xs rounded">
+                      {data} - {hora}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Conflito Estúdio */}
+          {horariosEstudioConflito.length > 0 && (
+            <div>
+              <p className="text-sm text-orange-600 font-medium">
+                Horários indisponíveis por conflito de estúdio:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {horariosEstudioConflito.map((h: any) => {
+                  const data = h.date?.slice(0, 10);
+                  const hora = h.start_time.slice(0, 5);
+                  return (
+                    <span key={data + hora} className="bg-orange-200 px-2 py-1 text-xs rounded">
+                      {data} - {hora}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Submit */}
       <button
         onClick={handleSubmit}
         className="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
