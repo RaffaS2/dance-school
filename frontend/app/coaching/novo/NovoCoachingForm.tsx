@@ -184,7 +184,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
               <p className="text-sm text-gray-400">Sem horários disponíveis.</p>
             ) : (
               horarios.map((h: any) => {
-                const data = h.date?.split("T")[0];
+                const data = h.date?.slice(0, 10);
                 const hora = h.start_time.slice(0, 5);
                 const valor = `${data} ${hora}`;
                 return (
