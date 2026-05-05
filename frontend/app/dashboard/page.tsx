@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function DashboardPage() {
   const stats = [
     { id: 1, titulo: "Utilizadores Ativos", valor: 128 },
@@ -15,34 +13,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <header className="flex justify-between items-center px-6 py-4 bg-white shadow mb-6">
-        <div className="flex items-center gap-4">
-          <img
-            src="/logo.png"
-            alt="Ent'Artes Logo"
-            className="h-12 object-contain"
-          />
-          <h1 className="text-xl font-bold">Dashboard</h1>
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/">
-            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-              Página Inicial
-            </button>
-          </Link>
-
-          <Link href="/coaching">
-            <button className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-              Ver Coachings
-            </button>
-          </Link>
-        </div>
-      </header>
-
       {/* Conteúdo principal */}
-      <div className="p-6">
+      <div className="mx-auto w-full max-w-6xl space-y-6 px-6 pt-6 pb-8">
         {/* Cards principais */}
         <div className="grid md:grid-cols-3 gap-4 mb-8">
           {stats.map((s) => (
