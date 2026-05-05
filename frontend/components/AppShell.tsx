@@ -11,7 +11,7 @@ type AppShellProps = {
 };
 
 const sharedLinks = [
-	{ href: "/", label: "Início" },
+	
 	{ href: "/dashboard", label: "Dashboard" },
 	{ href: "/inventario", label: "Inventário" },
 	{ href: "/coaching", label: "Coachings" },
