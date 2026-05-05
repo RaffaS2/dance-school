@@ -64,57 +64,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
-      {/* Navbar */}
-      <header className="flex justify-between items-center px-6 py-4 bg-white shadow">
-        <div className="flex items-center">
-          <Image
-            src="/logo.png"
-            alt="Ent'Artes Logo"
-            width={144}
-            height={48}
-            className="h-12 w-auto object-contain"
-          />
-        </div>
-
-        <nav className="flex gap-3">
-          {loadingSessao ? (
-            <button
-              className="border border-black px-4 py-2 rounded-lg bg-white text-black"
-              disabled
-            >
-              A carregar...
-            </button>
-          ) : utilizador ? (
-            <>
-              <Link href="/dashboard">
-                <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
-                  {utilizador.name}
-                </button>
-              </Link>
-              <button
-                onClick={terminarSessao}
-                className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800"
-              >
-                Sair
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login">
-                <button className="border border-black px-4 py-2 rounded-lg hover:bg-gray-100">
-                  Login
-                </button>
-              </Link>
-              <Link href="/signup">
-                <button className="bg-black text-white px-4 py-2 rounded-lg hover:bg-gray-800">
-                  Registar
-                </button>
-              </Link>
-            </>
-          )}
-        </nav>
-      </header>
-
       {/* Hero */}
       <section className="flex flex-col items-center justify-center flex-1 text-center px-6 py-12">
         <Image

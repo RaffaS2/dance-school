@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "../lib/apiBase";
@@ -199,40 +198,7 @@ export default function CoachingPage() {
 
 	return (
 		<div className="min-h-screen bg-gray-100 text-zinc-900">
-			<header className="mb-6 bg-white px-6 py-4 shadow">
-				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div className="flex items-center gap-4">
-						<Image
-							src="/logo.png"
-							alt="Ent'Artes Logo"
-							width={144}
-							height={48}
-							className="h-12 w-auto object-contain"
-						/>
-						<div>
-							<h1 className="text-xl font-bold">Os meus Coachings</h1>
-							<p className="text-sm text-gray-600">
-								Utilizador: {utilizadorAtual?.name ?? "Não autenticado"}
-							</p>
-						</div>
-					</div>
-
-					<div className="flex gap-3">
-						<Link href="/">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								Página Inicial
-							</button>
-						</Link>
-						<Link href="/coaching/novo">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								+ Requisitar Coaching
-							</button>
-						</Link>
-					</div>
-				</div>
-			</header>
-
-			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
+			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pt-6 pb-8">
 				{!loadingSessao && !utilizadorAtual && (
 					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
 						Sessão não encontrada. Inicia sessão em{" "}

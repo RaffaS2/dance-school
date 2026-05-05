@@ -12,6 +12,7 @@ type ApiItem = {
 	name: string;
 	status: number;
 	id_category: number;
+	image_url?: string;
 };
 
 type ApiCategory = {
@@ -36,6 +37,7 @@ type InventoryItem = {
 	status: number;
 	visual: string;
 	adicionadoPorUtilizador: boolean;
+	imagem_url?: string;
 };
 
 type SessionUser = {
@@ -106,6 +108,9 @@ export default function InventoryPage() {
 
 	const [novoNome, setNovoNome] = useState("");
 	const [novaCategoria, setNovaCategoria] = useState("");
+	const [novaImagemUrl, setNovaImagemUrl] = useState("");
+
+	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
@@ -162,6 +167,7 @@ export default function InventoryPage() {
 					status: item.status,
 					visual: initials(item.name),
 					adicionadoPorUtilizador: true,
+					imagem_url: item.image_url,
 				})),
 			);
 		} catch (error) {
@@ -350,6 +356,7 @@ export default function InventoryPage() {
 					name: novoNome.trim(),
 					status: 1,
 					id_category: idCategoria,
+					image_url: novaImagemUrl.trim() || null,
 				}),
 			});
 
@@ -359,6 +366,7 @@ export default function InventoryPage() {
 			}
 			setNovoNome("");
 			setNovaCategoria("");
+			setNovaImagemUrl("");
 			await carregarDados();
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Não foi possível guardar o item.";
@@ -369,9 +377,9 @@ export default function InventoryPage() {
 	}
 
 	async function removerItem(item: InventoryItem) {
-		const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
-		if (temHistoricoRequisicoes) {
-			alert("Não é possível remover este item porque já tem histórico de requisições.");
+		const emPosseDoUtilizadorAtual = requisicaoAtivaPorItem.has(item.id);
+		if (emPosseDoUtilizadorAtual) {
+			alert("Não é possível remover este item enquanto estiver em teu poder.");
 			return;
 		}
 
@@ -398,41 +406,8 @@ export default function InventoryPage() {
 	}
 
 	return (
-		<div className="min-h-screen bg-gray-100 text-zinc-900">
-			<header className="mb-6 bg-white px-6 py-4 shadow">
-				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div className="flex items-center gap-4">
-						<Image
-							src="/logo.png"
-							alt="Ent'Artes Logo"
-							width={144}
-							height={48}
-							className="h-12 w-auto object-contain"
-						/>
-						<div>
-							<h1 className="text-xl font-bold">Inventário</h1>
-							<p className="text-sm text-gray-600">
-								Utilizador atual: {utilizadorAtual?.name ?? "Não autenticado"}
-							</p>
-						</div>
-					</div>
-
-					<div className="flex gap-3">
-						<Link href="/">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								Página Inicial
-							</button>
-						</Link>
-						<Link href="/coaching">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								Coachings
-							</button>
-						</Link>
-					</div>
-				</div>
-			</header>
-
-			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
+		    <div className="min-h-screen bg-gray-100 text-zinc-900">
+			    <div className="mx-auto w-full max-w-6xl space-y-6 px-6 pt-6 pb-8">
 				{!loadingSessao && !utilizadorAtual && (
 					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
 						Sessão não encontrada. Inicia sessão em
@@ -506,6 +481,12 @@ export default function InventoryPage() {
 								placeholder="Categoria (ex: Material Didático)"
 								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
 							/>
+							<input
+								value={novaImagemUrl}
+								onChange={(e) => setNovaImagemUrl(e.target.value)}
+								placeholder="URL da imagem (opcional)"
+								className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
+							/>
 						</div>
 
 						<button
@@ -562,6 +543,18 @@ export default function InventoryPage() {
 
 						return (
 							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+								{item.imagem_url && (
+									<div 
+										className="mb-3 cursor-pointer overflow-hidden rounded-lg hover:opacity-80 transition-opacity"
+										onClick={() => setImagemAmpliada(item.imagem_url!)}
+									>
+										<img
+											src={item.imagem_url}
+											alt={item.nome}
+											className="h-32 w-full object-cover"
+										/>
+									</div>
+								)}
 								<div className="mb-3 flex items-center justify-between">
 									<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-xs font-bold text-white">
 										{item.visual}
@@ -605,18 +598,13 @@ export default function InventoryPage() {
 									)}
 
 									{item.adicionadoPorUtilizador && !emPosseDoUtilizador && (
-										(() => {
-											const temHistoricoRequisicoes = requisicoes.some((request) => request.id_item === item.id);
-											return (
 										<button
 											onClick={() => removerItem(item)}
-											disabled={loadingSessao || itemBloqueado || temHistoricoRequisicoes || itemEmAcao === item.id}
+										disabled={loadingSessao || itemEmAcao === item.id}
 											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
 										>
 											Remover Item
 										</button>
-											)
-										})()
 									)}
 								</div>
 							</article>
@@ -624,6 +612,30 @@ export default function InventoryPage() {
 					})}
 				</section>
 			</div>
+
+			{imagemAmpliada && (
+				<div 
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+					onClick={() => setImagemAmpliada(null)}
+				>
+					<div 
+						className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-lg bg-white"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<button
+							onClick={() => setImagemAmpliada(null)}
+							className="absolute right-2 top-2 rounded-lg bg-gray-800/80 p-2 text-white hover:bg-gray-900 z-10"
+						>
+							✕
+						</button>
+						<img
+							src={imagemAmpliada}
+							alt="Imagem ampliada"
+							className="h-auto w-full"
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
