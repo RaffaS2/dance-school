@@ -1,45 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function NovoCoachingForm({
-  prof,
-  alunos,
-  mods,
-  est,
-}: any) {
+export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: any) {
+  const utilizador = sessao?.user;
+  const tipoUtilizador = utilizador?.id_user_type;
+
   const [selectedProfessor, setSelectedProfessor] = useState("");
   const [selectedAluno, setSelectedAluno] = useState("");
   const [selectedModalidade, setSelectedModalidade] = useState("");
   const [selectedEstudio, setSelectedEstudio] = useState("");
 
-  const [horarios, setHorarios] = useState<string[]>([]);
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<any[]>([]);
+  const [horariosProfConflito, setHorariosProfConflito] = useState<any[]>([]);
+  const [horariosEstudioConflito, setHorariosEstudioConflito] = useState<any[]>([]);
+
   const [horarioSelecionado, setHorarioSelecionado] = useState("");
 
-  // 🔥 buscar horários quando escolhes professor
-  const handleProfessorChange = async (id: string) => {
-    setSelectedProfessor(id);
-    setHorarios([]);
+  // professor auto
+  useEffect(() => {
+    if (tipoUtilizador === 2 && utilizador) {
+      const profEncontrado = prof.find((p: any) => p.id_user === utilizador.id_user);
+      if (profEncontrado) {
+        const id = String(profEncontrado.id_professor);
+        setSelectedProfessor(id);
+        fetchHorarios(id);
+      }
+    }
+  }, [tipoUtilizador, utilizador, prof]);
+
+  // aluno auto
+  useEffect(() => {
+    if (tipoUtilizador === 3 && utilizador) {
+      const aluno = alunos.find((a: any) => a.id_user === utilizador.id_user);
+      if (aluno) {
+        setSelectedAluno(String(aluno.id_student));
+      }
+    }
+  }, [tipoUtilizador, utilizador, alunos]);
+
+  // atualizar quando muda estúdio
+  useEffect(() => {
+    if (selectedProfessor) {
+      fetchHorarios(selectedProfessor);
+    }
+  }, [selectedEstudio]);
+
+  const fetchHorarios = async (id: string) => {
     setHorarioSelecionado("");
+    setHorariosDisponiveis([]);
+    setHorariosProfConflito([]);
+    setHorariosEstudioConflito([]);
+
+    if (!id) return;
 
     try {
-      const res = await fetch(
-        `http://localhost:3001/professors/${id}/availabilities`
-      );
+      const [avRes, coachRes] = await Promise.all([
+        fetch(`http://localhost:3001/api/professors/${id}/availabilities`, {
+          credentials: "include",
+        }),
+        fetch(`http://localhost:3001/api/coachings`, {
+          credentials: "include",
+        }),
+      ]);
 
-      const data = await res.json();
+      const avData = await avRes.json();
+      const coachings = await coachRes.json();
 
-      const horas = data.map((h: any) =>
-        h.start_time.slice(0, 5)
-      );
+      const livres: any[] = [];
+      const conflitoProf: any[] = [];
+      const conflitoEstudio: any[] = [];
 
-      setHorarios(horas);
+      avData.forEach((h: any) => {
+        const data = h.date?.slice(0, 10);
+        const hora = h.start_time.slice(0, 5);
+
+        const conflitoProfessor = coachings.find(
+          (c: any) =>
+            c.date === data &&
+            c.start_time.slice(0, 5) === hora &&
+            c.id_professor == id &&
+            c.status !== "cancelado"
+        );
+
+        const conflitoEstudio = coachings.find(
+          (c: any) =>
+            c.date === data &&
+            c.start_time.slice(0, 5) === hora &&
+            c.id_studio == selectedEstudio &&
+            c.status !== "cancelado"
+        );
+
+        if (conflitoProfessor) {
+          conflitoProf.push(h);
+        } else if (conflitoEstudio) {
+          conflitoEstudio.push(h);
+        } else {
+          livres.push(h);
+        }
+      });
+
+      setHorariosDisponiveis(livres);
+      setHorariosProfConflito(conflitoProf);
+      setHorariosEstudioConflito(conflitoEstudio);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // 🔥 SUBMIT COMPLETO
+  const handleProfessorChange = async (id: string) => {
+    setSelectedProfessor(id);
+    fetchHorarios(id);
+  };
+
   const handleSubmit = async () => {
     if (
       !selectedProfessor ||
@@ -52,43 +125,43 @@ export default function NovoCoachingForm({
       return;
     }
 
-    try {
-      const hoje = new Date().toISOString().split("T")[0];
+    const [date, time] = horarioSelecionado.split(" ");
 
-      // 1️⃣ criar coaching
-      const res = await fetch("http://localhost:3001/coachings", {
+    try {
+      const res = await fetch("http://localhost:3001/api/coachings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           id_professor: selectedProfessor,
           id_studio: selectedEstudio,
           id_modality: selectedModalidade,
-          date: hoje,
-          start_time: horarioSelecionado,
+          date,
+          start_time: time,
           duration_minutes: 60,
           status: "pendente",
           price: 0,
         }),
       });
 
-      const coaching = await res.json();
+      const data = await res.json();
 
-      // 2️⃣ ligar aluno ao coaching
-      await fetch("http://localhost:3001/studentCoachings", {
+      if (!res.ok) {
+        alert(data.error);
+        return;
+      }
+
+      await fetch("http://localhost:3001/api/studentCoachings", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           id_student: selectedAluno,
-          id_coaching: coaching.id_coaching,
+          id_coaching: data.id_coaching,
         }),
       });
 
-      alert("✅ Coaching criado com sucesso!");
-
+      alert("Coaching criado com sucesso!");
     } catch (error) {
       console.error(error);
       alert("Erro ao criar coaching");
@@ -102,6 +175,8 @@ export default function NovoCoachingForm({
       {/* Professor */}
       <select
         className="w-full mb-3 p-2 border rounded"
+        value={selectedProfessor}
+        disabled={tipoUtilizador === 2}
         onChange={(e) => handleProfessorChange(e.target.value)}
       >
         <option value="">Selecionar Professor</option>
@@ -115,6 +190,8 @@ export default function NovoCoachingForm({
       {/* Aluno */}
       <select
         className="w-full mb-3 p-2 border rounded"
+        value={selectedAluno}
+        disabled={tipoUtilizador === 3}
         onChange={(e) => setSelectedAluno(e.target.value)}
       >
         <option value="">Selecionar Aluno</option>
@@ -128,6 +205,7 @@ export default function NovoCoachingForm({
       {/* Modalidade */}
       <select
         className="w-full mb-3 p-2 border rounded"
+        value={selectedModalidade}
         onChange={(e) => setSelectedModalidade(e.target.value)}
       >
         <option value="">Selecionar Modalidade</option>
@@ -141,6 +219,7 @@ export default function NovoCoachingForm({
       {/* Estúdio */}
       <select
         className="w-full mb-3 p-2 border rounded"
+        value={selectedEstudio}
         onChange={(e) => setSelectedEstudio(e.target.value)}
       >
         <option value="">Selecionar Estúdio</option>
@@ -151,33 +230,82 @@ export default function NovoCoachingForm({
         ))}
       </select>
 
-      {/* Horários */}
+      {/* HORÁRIOS */}
       {selectedProfessor && (
         <div className="mb-4">
           <p className="mb-2 font-medium">Horários disponíveis:</p>
 
-          <div className="flex gap-2 flex-wrap">
-            {horarios.map((h) => (
-              <button
-                key={h}
-                onClick={() => setHorarioSelecionado(h)}
-                className={`px-3 py-1 rounded ${
-                  horarioSelecionado === h
-                    ? "bg-black text-white"
-                    : "bg-gray-400 text-white"
-                }`}
-              >
-                {h}
-              </button>
-            ))}
+          <div className="flex gap-2 flex-wrap mb-3">
+            {horariosDisponiveis.length === 0 ? (
+              <p className="text-sm text-gray-400">Sem horários disponíveis.</p>
+            ) : (
+              horariosDisponiveis.map((h: any) => {
+                const data = h.date?.slice(0, 10);
+                const hora = h.start_time.slice(0, 5);
+                const valor = `${data} ${hora}`;
+
+                return (
+                  <button
+                    key={valor}
+                    onClick={() => setHorarioSelecionado(valor)}
+                    className={`px-3 py-1 rounded ${
+                      horarioSelecionado === valor
+                        ? "bg-black text-white"
+                        : "bg-green-600 text-white"
+                    }`}
+                  >
+                    {data} - {hora}
+                  </button>
+                );
+              })
+            )}
           </div>
+
+          {/* Conflito Professor */}
+          {horariosProfConflito.length > 0 && (
+            <div className="mb-2">
+              <p className="text-sm text-red-600 font-medium">
+                Horários indisponíveis por conflito com o professor:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {horariosProfConflito.map((h: any) => {
+                  const data = h.date?.slice(0, 10);
+                  const hora = h.start_time.slice(0, 5);
+                  return (
+                    <span key={data + hora} className="bg-red-200 px-2 py-1 text-xs rounded">
+                      {data} - {hora}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Conflito Estúdio */}
+          {horariosEstudioConflito.length > 0 && (
+            <div>
+              <p className="text-sm text-orange-600 font-medium">
+                Horários indisponíveis por conflito de estúdio:
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {horariosEstudioConflito.map((h: any) => {
+                  const data = h.date?.slice(0, 10);
+                  const hora = h.start_time.slice(0, 5);
+                  return (
+                    <span key={data + hora} className="bg-orange-200 px-2 py-1 text-xs rounded">
+                      {data} - {hora}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Submit */}
       <button
         onClick={handleSubmit}
-        className="w-full bg-gray-600 text-white py-2 rounded"
+        className="w-full bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
       >
         Confirmar
       </button>

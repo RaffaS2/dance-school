@@ -23,6 +23,7 @@ const readAllProfessors = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.id_professor,
+        p.id_user,
         p.specialty,
         p.active,
         u.name
@@ -45,6 +46,7 @@ const readProfessorById = async (req, res) => {
     const result = await pool.query(`
       SELECT 
         p.id_professor,
+        p.id_user,
         p.specialty,
         p.active,
         u.name

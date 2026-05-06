@@ -4,8 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --env-file=.env server.js"
+  "dev": "nodemon --env-file=.env server.js",
+  "test": "jest --detectOpenHandles",
+  "test:watch": "jest --watchAll --detectOpenHandles", 
+  "test:coverage": "jest --coverage --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
@@ -24,6 +26,8 @@
     "resend": "^6.12.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }
