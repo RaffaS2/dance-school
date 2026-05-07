@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getApiBase } from '../lib/apiBase'
+import { useSearchParams } from 'next/navigation'
 
 export default function Login() {
   const router = useRouter()
@@ -14,6 +15,7 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams()
 
   const handleLogin = async () => {
     setError('')
@@ -34,7 +36,9 @@ export default function Login() {
         return
       }
 
-      router.push('/dashboard')
+      // Redireciona para onde o utilizador queria ir, ou dashboard por defeito
+      const redirect = searchParams.get('redirect') || '/dashboard'
+      router.push(redirect)
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
     } finally {
@@ -50,15 +54,6 @@ export default function Login() {
         style={{ width: 600, height: 600, top: -200, left: -200, background: 'rgba(212, 83, 126, 0.03)' }} />
       <div className="absolute rounded-full border border-[rgba(212,83,126,0.08)] pointer-events-none"
         style={{ width: 400, height: 400, bottom: -150, right: -150, background: 'rgba(127, 119, 221, 0.03)' }} />
-
-      {/* Botão voltar à página inicial */}
-      <Link href="/" className="absolute top-5 left-5 z-20 flex items-center gap-1.5 text-[12px] text-[#9a9a9a] hover:text-[#D4537E] transition-colors duration-200 no-underline group">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Página inicial
-      </Link>
-
       {/* Logo */}
       <div className="text-center -mt-16 mb-0.5 relative z-10">
         <Image
