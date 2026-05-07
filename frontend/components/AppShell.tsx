@@ -11,7 +11,6 @@ type AppShellProps = {
 };
 
 const sharedLinks = [
-	
 	{ href: "/dashboard", label: "Dashboard" },
 	{ href: "/inventario", label: "Inventário" },
 	{ href: "/coaching", label: "Coachings" },
@@ -30,24 +29,30 @@ function shouldHideNavbar(pathname: string) {
 
 function getNavbarForPath(pathname: string) {
 	if (pathname === "/") {
-		return {
-			title: "Página Inicial",
-			subtitle: "Escola de dança",
-			links: sharedLinks,
-		};
+		return { title: "Página Inicial", subtitle: "Escola de dança", links: sharedLinks };
 	}
 
 	if (pathname === "/dashboard") {
-		return {
-			title: "Dashboard",
-			links: sharedLinks,
-		};
+		return { title: "Dashboard", links: sharedLinks };
 	}
 
 	if (pathname === "/inventario") {
+		return { title: "Inventário", links: sharedLinks };
+	}
+
+
+	if (pathname === "/inventario/novo") {
 		return {
-			title: "Inventário",
+			title: "Adicionar Item",
 			links: sharedLinks,
+			actions: (
+				<Link
+					href="/inventario"
+					className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+				>
+					Voltar
+				</Link>
+			),
 		};
 	}
 
@@ -112,10 +117,7 @@ function getNavbarForPath(pathname: string) {
 	}
 
 	if (pathname === "/perfil") {
-		return {
-			title: "Perfil",
-			links: sharedLinks,
-		};
+		return { title: "Perfil", links: sharedLinks };
 	}
 
 	if (pathname === "/perfil/editar") {
@@ -165,10 +167,7 @@ function getNavbarForPath(pathname: string) {
 	}
 
 	if (pathname === "/admin/studios") {
-		return {
-			title: "Gerenciar Estúdios e Modalidades",
-			links: sharedLinks,
-		};
+		return { title: "Gerenciar Estúdios e Modalidades", links: sharedLinks };
 	}
 
 	return null;
@@ -186,28 +185,3 @@ export default function AppShell({ children }: AppShellProps) {
 		</>
 	);
 }
-
-/*
- AppShell.tsx
-
- Shell da aplicação (client-side) usado pelo layout raiz para renderizar
- uma única barra de navegação partilhada (`AppNavbar`) e o conteúdo da
- página (`children`).
-
- Responsabilidades:
- - Decidir quando a navbar deve ser exibida ou escondida (páginas de
-	 autenticação como /login, /signup, /forgotpassword, /resetpassword, etc.
-	 escondem a navbar).
- - Fornecer um único local para configurar títulos, subtítulos, listas de
-	 links e botões de ação por rota, evitando duplicação do cabeçalho nas
-	 páginas.
- - Centralizar a lógica da navbar para que as páginas apenas renderizem o
-	 conteúdo específico de cada rota.
-
- Notas de uso:
- - Prefira configurar links/ações aqui em vez de importar `AppNavbar`
-	 diretamente nas páginas quando o `AppShell` estiver em uso, para evitar
-	 duplicação e inconsistências.
- - Se adicionar novas rotas que precisem de uma navbar personalizada,
-	 atualize `getNavbarForPath`.
-*/
