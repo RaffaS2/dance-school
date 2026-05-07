@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiBase } from "../../lib/apiBase";
@@ -103,7 +102,7 @@ export default function ValidarAulasProfessorPage() {
 
     try {
       // 1. Sessão
-      const sessionResponse = await fetch(`${apiBase}/api/auth/me`, {
+      const sessionResponse = await fetch(`${apiBase}/auth/me`, {
         credentials: "include",
         cache: "no-store",
       });
@@ -248,35 +247,6 @@ export default function ValidarAulasProfessorPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="flex flex-wrap items-center justify-between gap-4 bg-white px-6 py-4 shadow">
-        <div className="flex items-center gap-4">
-          <Image
-            src="/logo.png"
-            alt="Ent'Artes Logo"
-            width={144}
-            height={48}
-            className="h-12 w-auto object-contain"
-          />
-          <div>
-            <p className="text-sm text-gray-500">Escola de Dança</p>
-            <h1 className="text-xl font-bold">Validar Aulas</h1>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <Link href="/dashboard">
-            <button className="rounded-lg border border-black bg-white px-4 py-2 text-black hover:bg-gray-100">
-              Dashboard
-            </button>
-          </Link>
-          <Link href="/coaching">
-            <button className="rounded-lg bg-black px-4 py-2 text-white hover:bg-gray-800">
-              Ver Coachings
-            </button>
-          </Link>
-        </div>
-      </header>
-
       <main className="mx-auto w-full max-w-5xl px-6 py-10">
         <section className="mb-8 rounded-2xl bg-white p-6 shadow">
           <h2 className="text-2xl font-bold text-gray-900">Validar Aulas</h2>
@@ -337,12 +307,6 @@ export default function ValidarAulasProfessorPage() {
                       </h3>
                       <p className="text-sm text-gray-600">
                         Duração: {coaching.duration_minutes} minutos
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Valor:{" "}
-                        {typeof coaching.price === "number"
-                          ? `${coaching.price} EUR`
-                          : "N/D"}
                       </p>
                       {/* Admin vê o nome do professor */}
                       {user?.id_user_type === 1 && coaching.professor && (

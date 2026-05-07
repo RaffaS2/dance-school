@@ -5,13 +5,13 @@ import Link from 'next/link'
 import { getApiBase } from '../lib/apiBase'
 
 export default function ForgotPassword() {
-  const apiBase = getApiBase()
   const [email, setEmail] = useState('')
   const [popupVisible, setPopupVisible] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
+    const apiBase = getApiBase() 
     setError('')
 
     if (!email) {
@@ -22,7 +22,7 @@ export default function ForgotPassword() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${apiBase}/api/auth/forgot-password`, {
+      const res = await fetch(`${apiBase}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { createUser, readAllUsers, readUserById, updateUser, deleteUser,   } = require('../controllers/usersController')
+const authorize = require('./authorize') // Middleware de autorização para proteger as rotas
+const { createUser, readAllUsers, readUserById, updateUser, deleteUser } = require('../controllers/usersController')
 
 router.post('/',     authorize(1),       createUser)          
 router.get('/',      authorize(1),       readAllUsers)        

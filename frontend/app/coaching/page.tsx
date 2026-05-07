@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { getApiBase } from "../lib/apiBase";
@@ -14,15 +13,21 @@ type SessionUser = {
 
 type ApiCoaching = {
 	id_coaching: number;
+	id_professor?: number;
+	id_studio?: number;
+	id_modality?: number;
 	professor: string;
 	modalidade: string;
 	estudio: string;
-	aluno?: string; // só vem no endpoint do encarregado
+	aluno?: string;
 	date: string;
 	start_time: string;
 	duration_minutes: number;
 	status: string;
 	price: number;
+	professor_validation?: boolean | null;
+	guardian_validation?: boolean | null;
+	coordination_validation?: boolean | null;
 };
 
 function formatDate(dateString: string) {
@@ -42,6 +47,10 @@ function estadoColor(status: string) {
 	}
 }
 
+function podeCancelar(status: string) {
+	return !status?.toLowerCase().includes("cancelado");
+}
+
 export default function CoachingPage() {
 	const apiBase = getApiBase();
 
@@ -50,19 +59,14 @@ export default function CoachingPage() {
 	const [coachings, setCoachings] = useState<ApiCoaching[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [erro, setErro] = useState("");
+	const [cancelandoId, setCancelandoId] = useState<number | null>(null);
 
-	// ── 1. Carregar sessão ──────────────────────────────────────────────────
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
 		try {
-			const res = await fetch(`${apiBase}/api/auth/me`, {
-				credentials: "include",
-			});
-			if (!res.ok) {
-				setUtilizadorAtual(null);
-				return;
-			}
-			const data = (await res.json()) as { user: SessionUser };
+			const res = await fetch(`${apiBase}/auth/me`, { credentials: "include" });
+			if (!res.ok) { setUtilizadorAtual(null); return; }
+			const data = await res.json();
 			setUtilizadorAtual(data.user);
 		} catch {
 			setUtilizadorAtual(null);
@@ -71,128 +75,109 @@ export default function CoachingPage() {
 		}
 	}, [apiBase]);
 
-	// ── 2. Carregar coachings filtrados por tipo de utilizador ──────────────
-	const carregarCoachings = useCallback(
-		async (user: SessionUser) => {
-			setErro("");
-			setLoading(true);
-			try {
-				let url = "";
+	const carregarCoachings = useCallback(async (user: SessionUser) => {
+		setErro("");
+		setLoading(true);
+		try {
+			let url = "";
 
-				if (user.id_user_type === 2) {
-					// Professor → descobre o id_professor a partir do id_user
-					const profRes = await fetch(`${apiBase}/professors`, {
-						credentials: "include",
-					});
-					if (!profRes.ok) throw new Error("Falha ao carregar professores.");
-					const profs = (await profRes.json()) as {
-						id_professor: number;
-						id_user: number;
-					}[];
-					const prof = profs.find((p) => p.id_user === user.id_user);
-					if (!prof) {
-						setCoachings([]);
-						return;
-					}
-					url = `${apiBase}/coachings/professor/${prof.id_professor}`;
-				} else if (user.id_user_type === 1) {
-					// Admin → vê todos
-					url = `${apiBase}/coachings`;
-				} else {
-					// Encarregado / aluno → filtra pelos seus educandos
-					url = `${apiBase}/coachings/guardian/${user.id_user}`;
-				}
-
-				const res = await fetch(url, { credentials: "include" });
-				if (!res.ok) throw new Error("Falha ao carregar coachings.");
-				const data = (await res.json()) as ApiCoaching[];
-				setCoachings(data);
-			} catch (error) {
-				setErro("Não foi possível carregar os coachings.");
-			} finally {
-				setLoading(false);
+			if (user.id_user_type === 2) {
+				const profRes = await fetch(`${apiBase}/professors`, { credentials: "include" });
+				if (!profRes.ok) throw new Error("Falha ao carregar professores.");
+				const profs = await profRes.json();
+				const prof = profs.find((p: any) => p.id_user === user.id_user);
+				if (!prof) { setCoachings([]); return; }
+				url = `${apiBase}/coachings/professor/${prof.id_professor}`;
+			} else if (user.id_user_type === 1) {
+				url = `${apiBase}/coachings`;
+			} else {
+				url = `${apiBase}/coachings/guardian/${user.id_user}`;
 			}
-		},
-		[apiBase],
-	);
 
-	// ── 3. Efeitos ──────────────────────────────────────────────────────────
-	useEffect(() => {
-		void carregarSessao();
-	}, [carregarSessao]);
-
-	useEffect(() => {
-		if (!loadingSessao && utilizadorAtual) {
-			void carregarCoachings(utilizadorAtual);
-		} else if (!loadingSessao && !utilizadorAtual) {
+			const res = await fetch(url, { credentials: "include" });
+			if (!res.ok) throw new Error("Falha ao carregar coachings.");
+			setCoachings(await res.json());
+		} catch {
+			setErro("Não foi possível carregar os coachings.");
+		} finally {
 			setLoading(false);
 		}
+	}, [apiBase]);
+
+	const cancelarCoaching = async (coaching: ApiCoaching) => {
+		const confirmado = window.confirm(
+			`Tens a certeza que queres cancelar o coaching de ${formatDate(coaching.date)} às ${coaching.start_time?.slice(0, 5)}?`
+		);
+		if (!confirmado) return;
+
+		setCancelandoId(coaching.id_coaching);
+		setErro("");
+
+		try {
+			const detailRes = await fetch(`${apiBase}/coachings/${coaching.id_coaching}`, { credentials: "include" });
+			if (!detailRes.ok) throw new Error("Não foi possível ler os dados do coaching.");
+			const detail = await detailRes.json();
+			if (!detail) throw new Error("Coaching não encontrado.");
+
+			const updateRes = await fetch(`${apiBase}/coachings/${coaching.id_coaching}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					id_professor: detail.id_professor,
+					id_studio: detail.id_studio,
+					id_modality: detail.id_modality,
+					date: detail.date,
+					start_time: detail.start_time,
+					duration_minutes: detail.duration_minutes,
+					status: "cancelado",
+					price: detail.price,
+					professor_validation: detail.professor_validation,
+					guardian_validation: detail.guardian_validation,
+					coordination_validation: detail.coordination_validation,
+				}),
+			});
+
+			if (!updateRes.ok) throw new Error("Não foi possível cancelar o coaching.");
+			if (utilizadorAtual) await carregarCoachings(utilizadorAtual);
+		} catch (err) {
+			setErro(err instanceof Error ? err.message : "Erro ao cancelar coaching.");
+		} finally {
+			setCancelandoId(null);
+		}
+	};
+
+	useEffect(() => { void carregarSessao(); }, [carregarSessao]);
+
+	useEffect(() => {
+		if (!loadingSessao && utilizadorAtual) void carregarCoachings(utilizadorAtual);
+		else if (!loadingSessao && !utilizadorAtual) setLoading(false);
 	}, [loadingSessao, utilizadorAtual, carregarCoachings]);
 
-	// ── 4. Render ───────────────────────────────────────────────────────────
 	return (
 		<div className="min-h-screen bg-gray-100 text-zinc-900">
-			{/* Header */}
-			<header className="mb-6 bg-white px-6 py-4 shadow">
-				<div className="mx-auto flex w-full max-w-6xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
-					<div className="flex items-center gap-4">
-						<Image
-							src="/logo.png"
-							alt="Ent'Artes Logo"
-							width={144}
-							height={48}
-							className="h-12 w-auto object-contain"
-						/>
-						<div>
-							<h1 className="text-xl font-bold">Os meus Coachings</h1>
-							<p className="text-sm text-gray-600">
-								Utilizador: {utilizadorAtual?.name ?? "Não autenticado"}
-							</p>
-						</div>
-					</div>
+			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pt-6 pb-8">
 
-					<div className="flex gap-3">
-						<Link href="/">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								Página Inicial
-							</button>
-						</Link>
-						<Link href="/coaching/novo">
-							<button className="rounded-lg bg-gray-500 px-4 py-2 text-white hover:bg-gray-600">
-								+ Requisitar Coaching
-							</button>
-						</Link>
-					</div>
-				</div>
-			</header>
-
-			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pb-8">
-				{/* Aviso de sessão */}
 				{!loadingSessao && !utilizadorAtual && (
 					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
 						Sessão não encontrada. Inicia sessão em{" "}
-						<Link href="/login" className="font-semibold underline">
-							/login
-						</Link>{" "}
+						<Link href="/login" className="font-semibold underline">/login</Link>{" "}
 						para veres os teus coachings.
 					</div>
 				)}
 
-				{/* Loading */}
 				{loading && (
 					<div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow">
 						A carregar coachings...
 					</div>
 				)}
 
-				{/* Erro */}
 				{erro && (
 					<div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 shadow">
 						{erro}
 					</div>
 				)}
 
-				{/* Resumo */}
 				{!loading && utilizadorAtual && (
 					<div className="rounded-xl bg-white p-5 shadow">
 						<h2 className="text-lg font-semibold">Resumo</h2>
@@ -202,7 +187,6 @@ export default function CoachingPage() {
 					</div>
 				)}
 
-				{/* Lista de coachings */}
 				{!loading && utilizadorAtual && (
 					<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 						{coachings.length === 0 ? (
@@ -211,41 +195,40 @@ export default function CoachingPage() {
 							</div>
 						) : (
 							coachings.map((c) => (
-								<article
-									key={c.id_coaching}
-									className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-								>
+								<article key={c.id_coaching} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
 									<div className="mb-3 flex items-center justify-between">
-										<p className="font-semibold">
-											{c.modalidade} — {c.estudio}
-										</p>
-										<span
-											className={`rounded-full px-3 py-1 text-xs font-semibold ${estadoColor(c.status)}`}
-										>
+										<p className="font-semibold">{c.modalidade}</p>
+										<span className={`rounded-full px-3 py-1 text-xs font-semibold ${estadoColor(c.status)}`}>
 											{c.status}
 										</span>
 									</div>
 
-									{/* Só o encarregado vê o nome do aluno */}
+									<p className="text-sm text-gray-700">
+										<span className="font-medium">Estúdio:</span> {c.estudio}
+									</p>
+									<p className="text-sm text-gray-600">
+										<span className="font-medium">Professor:</span> {c.professor}
+									</p>
+
 									{c.aluno && (
-										<p className="mb-1 text-sm font-medium text-blue-600">
+										<p className="mt-1 text-sm font-medium text-blue-600">
 											Aluno: {c.aluno}
 										</p>
 									)}
 
-									<p className="text-sm text-gray-600">Professor: {c.professor}</p>
-									<p className="mt-1 text-xs text-gray-500">
-										Data: {formatDate(c.date)}
-									</p>
-									<p className="text-xs text-gray-500">
-										Hora: {c.start_time?.slice(0, 5)}
-									</p>
-									<p className="text-xs text-gray-500">
-										Duração: {c.duration_minutes} min
-									</p>
-									<p className="text-xs text-gray-500">
-										Preço: {c.price}€
-									</p>
+									<p className="mt-2 text-xs text-gray-500">Data: {formatDate(c.date)}</p>
+									<p className="text-xs text-gray-500">Hora: {c.start_time?.slice(0, 5)}</p>
+									<p className="text-xs text-gray-500">Duração: {c.duration_minutes} min</p>
+
+									{podeCancelar(c.status) && (
+										<button
+											onClick={() => cancelarCoaching(c)}
+											disabled={cancelandoId === c.id_coaching}
+											className="mt-3 w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+										>
+											{cancelandoId === c.id_coaching ? "A cancelar..." : "Cancelar Coaching"}
+										</button>
+									)}
 								</article>
 							))
 						)}
