@@ -6,6 +6,30 @@ const pool = require('../db')
 const createItemRequest = async (req, res) => {
     try {
         const { request_date, return_date, id_item, id_user, delivery_status, request_status } = req.body
+
+        // ── Limite de 3 requisições ativas por utilizador ─────────────────────
+        const activeCount = await pool.query(
+            'SELECT COUNT(*) FROM item_requests WHERE id_user = $1 AND return_date IS NULL',
+            [id_user]
+        )
+        if (parseInt(activeCount.rows[0].count) >= 3) {
+            return res.status(409).json({
+                error: 'Atingiste o limite de 3 requisições ativas. Devolve um item antes de requisitar outro.'
+            })
+        }
+
+        // ── Impedir requisição do próprio item ────────────────────────────────
+        const item = await pool.query(
+            'SELECT id_user FROM items WHERE id_item = $1',
+            [id_item]
+        )
+        if (item.rows.length > 0 && item.rows[0].id_user === id_user) {
+            return res.status(403).json({
+                error: 'Não podes requisitar um item que tu próprio adicionaste.'
+            })
+        }
+
+        // ── Criar a requisição ────────────────────────────────────────────────
         const result = await pool.query(
             'INSERT INTO item_requests (request_date, return_date, id_item, id_user, delivery_status, request_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
             [request_date, return_date, id_item, id_user, delivery_status, request_status]

@@ -1,17 +1,21 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getApiBase } from "../lib/apiBase";
 
-type ItemStatusFilter = "todos" | "disponivel" | "em-uso" | "sem-stock";
+type ItemStatusFilter = "disponivel" | "em-uso" | "indisponivel";
 
 type ApiItem = {
 	id_item: number;
 	name: string;
 	status: number;
 	id_category: number;
+	id_user?: number;
+	user_id?: number;
+	owner_id?: number;
+	created_by?: number;
+	id_utilizador?: number;
 	image_url?: string;
 };
 
@@ -37,6 +41,7 @@ type InventoryItem = {
 	status: number;
 	visual: string;
 	adicionadoPorUtilizador: boolean;
+	id_dono?: number;
 	imagem_url?: string;
 };
 
@@ -48,29 +53,18 @@ type SessionUser = {
 };
 
 function initials(value: string) {
-	return value
-		.split(" ")
-		.slice(0, 2)
-		.map((part) => part[0]?.toUpperCase() ?? "")
-		.join("")
-		.slice(0, 2);
+	return value.split(" ").slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
 }
 
-function isActiveRequest(request: ApiItemRequest) {
-	return !request.return_date;
-}
+function isActiveRequest(r: ApiItemRequest) { return !r.return_date; }
 
-function formatDate(dateString: string) {
-	return new Date(dateString).toLocaleDateString("pt-PT");
-}
+function formatDate(d: string) { return new Date(d).toLocaleDateString("pt-PT"); }
 
-function hojeISO() {
-	return new Date().toISOString().split("T")[0];
-}
+function hojeISO() { return new Date().toISOString().split("T")[0]; }
 
-function estadoDoItem(emPosseDoUtilizador: boolean, itemBloqueado: boolean) {
-	if (emPosseDoUtilizador) return "Em Uso";
-	if (itemBloqueado) return "Sem Stock";
+function estadoDoItem(emPosse: boolean, bloqueado: boolean) {
+	if (emPosse) return "Em Uso";
+	if (bloqueado) return "Indisponível";
 	return "Disponível";
 }
 
@@ -85,10 +79,178 @@ async function getApiErrorMessage(response: Response, fallback: string) {
 	try {
 		const data = (await response.json()) as { error?: string; message?: string };
 		return data.error || data.message || fallback;
-	} catch {
-		return fallback;
-	}
+	} catch { return fallback; }
 }
+
+// ── Paleta & tokens ──────────────────────────────────────────────────────────
+const C = {
+	rose:   "#C94B73",
+	roseLight: "rgba(201,75,115,0.10)",
+	roseSoft:  "rgba(201,75,115,0.06)",
+	ink:    "#1C1828",
+	inkMid: "#3D3553",
+	muted:  "#8B87A0",
+	border: "#EDE9F4",
+	surface:"#FAFAF8",
+	white:  "#FFFFFF",
+	purple: "#2D1F4E",
+	purpleGrad: "linear-gradient(135deg,#3B2B5C 0%,#1E1330 100%)",
+	green:  "#1A9E5C",
+	greenLight: "rgba(26,158,92,0.10)",
+	red:    "#D63B3B",
+	redLight:   "rgba(214,59,59,0.10)",
+	amber:  "#C97A1A",
+	amberLight: "rgba(201,122,26,0.10)",
+};
+
+const FONTS = {
+	serif:  "'Cormorant Garamond', serif",
+	sans:   "'DM Sans', sans-serif",
+};
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function Badge({ estado }: { estado: string }) {
+	const map: Record<string, { bg: string; color: string; dot: string }> = {
+		"Disponível":   { bg: C.greenLight, color: C.green, dot: C.green },
+		"Em Uso":       { bg: C.roseLight,  color: C.rose,  dot: C.rose  },
+		"Indisponível": { bg: C.redLight,   color: C.red,   dot: C.red   },
+	};
+	const s = map[estado] ?? { bg: "rgba(139,135,160,0.10)", color: C.muted, dot: C.muted };
+	return (
+		<span style={{
+			display: "inline-flex", alignItems: "center", gap: 5,
+			background: s.bg, color: s.color,
+			padding: "3px 10px", borderRadius: 999,
+			fontSize: 10, letterSpacing: "0.12em", fontWeight: 600, textTransform: "uppercase",
+		}}>
+			<span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
+			{estado}
+		</span>
+	);
+}
+
+function Avatar({ initials: iv }: { initials: string }) {
+	return (
+		<div style={{
+			width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+			background: C.purpleGrad,
+			display: "flex", alignItems: "center", justifyContent: "center",
+			color: "#fff", fontSize: 12, fontWeight: 700, letterSpacing: "0.05em",
+			fontFamily: FONTS.sans,
+		}}>{iv}</div>
+	);
+}
+
+function FilterPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+	return (
+		<button
+			onClick={onClick}
+			style={{
+				padding: "6px 16px", borderRadius: 999, fontSize: 11,
+				fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase",
+				cursor: "pointer", transition: "all 0.18s",
+				background: active ? C.purpleGrad : "transparent",
+				color: active ? "#fff" : C.muted,
+				border: active ? "1.5px solid transparent" : `1.5px solid ${C.border}`,
+				fontFamily: FONTS.sans,
+			}}
+		>
+			{label}
+		</button>
+	);
+}
+
+// ── ItemCard component ───────────────────────────────────────────────────────
+
+type ItemCardProps = {
+	item: InventoryItem;
+	estado: string;
+	emPosse: boolean;
+	isDono: boolean;
+	bloqueado: boolean;
+	isLoading: boolean;
+	limiteAtingido: boolean;
+	onRequisitar: (item: InventoryItem) => void;
+	onDevolver: (item: InventoryItem) => void;
+	onRemover: (item: InventoryItem) => void;
+	onAmpliada: (url: string) => void;
+};
+
+function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+	return (
+		<article style={{
+			background: C.white, borderRadius: 16, border: `1px solid ${C.border}`,
+			boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden",
+			display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s",
+		}}
+			onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(28,24,40,0.12)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+			onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 20px rgba(28,24,40,0.05)"; (e.currentTarget as HTMLElement).style.transform = "none"; }}
+		>
+			{item.imagem_url ? (
+				<div style={{ height: 160, overflow: "hidden", cursor: "zoom-in" }} onClick={() => onAmpliada(item.imagem_url!)}>
+					<img src={item.imagem_url} alt={item.nome}
+						style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.35s" }}
+						onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.05)")}
+						onMouseLeave={e => (e.currentTarget.style.transform = "none")}
+					/>
+				</div>
+			) : (
+				<div style={{ height: 80, background: "linear-gradient(135deg,#EDE9F4 0%, #F6F4F9 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+					<span style={{ fontFamily: FONTS.serif, fontSize: 32, color: C.border, userSelect: "none" }}>{item.visual}</span>
+				</div>
+			)}
+			<div style={{ padding: "16px 18px 18px", flex: 1, display: "flex", flexDirection: "column" }}>
+				<div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+						<Avatar initials={item.visual} />
+						<div>
+							<h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: C.ink, lineHeight: 1.2 }}>{item.nome}</h3>
+							<p style={{ margin: "3px 0 0", fontSize: 11, color: C.muted }}>{item.categoria}</p>
+						</div>
+					</div>
+					<Badge estado={estado} />
+				</div>
+				<div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, paddingBottom: 14, borderBottom: `1px solid ${C.border}` }}>
+					<span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Registo</span>
+					<span style={{ fontSize: 11, color: C.inkMid }}>{estadoInternoItem(item.status)}</span>
+				</div>
+				<div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
+					{emPosse ? (
+						<button onClick={() => onDevolver(item)} disabled={isLoading}
+							style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, fontFamily: FONTS.sans, transition: "opacity 0.15s" }}>
+							{isLoading ? "A processar..." : "Devolver Item"}
+						</button>
+					) : isDono ? (
+						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px dashed ${C.border}`, background: "transparent", color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
+							O teu item
+						</button>
+					) : bloqueado ? (
+						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.border, color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
+							Indisponível
+						</button>
+					) : (
+						<button onClick={() => onRequisitar(item)} disabled={limiteAtingido || isLoading}
+							style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: limiteAtingido ? C.border : C.purpleGrad, color: limiteAtingido ? C.muted : "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: (isLoading || limiteAtingido) ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, fontFamily: FONTS.sans, transition: "opacity 0.15s" }}>
+							{isLoading ? "A processar..." : limiteAtingido ? "Limite atingido" : "Requisitar Item"}
+						</button>
+					)}
+					{isDono && !emPosse && (
+						<button onClick={() => onRemover(item)} disabled={isLoading}
+							style={{ width: "100%", padding: "10px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
+							onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
+							onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+						>
+							Remover
+						</button>
+					)}
+				</div>
+			</div>
+		</article>
+	);
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function InventoryPage() {
 	const apiBase = getApiBase();
@@ -99,11 +261,9 @@ export default function InventoryPage() {
 	const [loading, setLoading] = useState(true);
 	const [erro, setErro] = useState("");
 	const [itemEmAcao, setItemEmAcao] = useState<number | null>(null);
-
 	const [pesquisa, setPesquisa] = useState("");
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
-	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("todos");
-
+	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("disponivel");
 	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
 
 	const carregarSessao = useCallback(async () => {
@@ -113,77 +273,48 @@ export default function InventoryPage() {
 			if (!res.ok) { setUtilizadorAtual(null); return; }
 			const data = (await res.json()) as { user: SessionUser };
 			setUtilizadorAtual(data.user);
-		} catch {
-			setUtilizadorAtual(null);
-		} finally {
-			setLoadingSessao(false);
-		}
+		} catch { setUtilizadorAtual(null); }
+		finally { setLoadingSessao(false); }
 	}, [apiBase]);
 
 	const carregarDados = useCallback(async () => {
-		setErro("");
-		setLoading(true);
+		setErro(""); setLoading(true);
 		try {
 			const [itemsRes, categoriesRes, requestsRes] = await Promise.all([
 				fetch(`${apiBase}/items`, { cache: "no-store", credentials: "include" }),
 				fetch(`${apiBase}/categories`, { cache: "no-store", credentials: "include" }),
 				fetch(`${apiBase}/item-requests`, { cache: "no-store", credentials: "include" }),
 			]);
-
-			if (!itemsRes.ok || !categoriesRes.ok || !requestsRes.ok) {
-				throw new Error("Falha ao carregar dados do inventário.");
-			}
-
-			const [itemsData, categoriesData, requestsData] = (await Promise.all([
-				itemsRes.json(),
-				categoriesRes.json(),
-				requestsRes.json(),
-			])) as [ApiItem[], ApiCategory[], ApiItemRequest[]];
-
-			const categoriesById = new Map<number, string>(
-				categoriesData.map((category) => [category.id_category, category.name]),
-			);
-
+			if (!itemsRes.ok || !categoriesRes.ok || !requestsRes.ok) throw new Error();
+			const [itemsData, categoriesData, requestsData] = await Promise.all([
+				itemsRes.json(), categoriesRes.json(), requestsRes.json(),
+			]) as [ApiItem[], ApiCategory[], ApiItemRequest[]];
+			const catById = new Map(categoriesData.map((c) => [c.id_category, c.name]));
 			setRequisicoes(requestsData);
-			setItens(
-				itemsData.map((item) => ({
-					id: item.id_item,
-					nome: item.name,
-					categoria: categoriesById.get(item.id_category) ?? "Sem categoria",
-					status: item.status,
-					visual: initials(item.name),
-					adicionadoPorUtilizador: true,
-					imagem_url: item.image_url,
-				})),
-			);
-		} catch {
-			setErro("Não foi possível carregar o inventário.");
-		} finally {
-			setLoading(false);
-		}
+			setItens(itemsData.map((item) => ({
+				id: item.id_item, nome: item.name,
+				categoria: catById.get(item.id_category) ?? "Sem categoria",
+				status: item.status, visual: initials(item.name),
+				adicionadoPorUtilizador: true, id_dono: item.id_user, imagem_url: item.image_url,
+			})));
+		} catch { setErro("Não foi possível carregar o inventário."); }
+		finally { setLoading(false); }
 	}, [apiBase]);
 
 	useEffect(() => { void carregarSessao(); }, [carregarSessao]);
 	useEffect(() => { void carregarDados(); }, [carregarDados]);
 
-	const categorias = useMemo(() => {
-		const todas = itens.map((item) => item.categoria);
-		return [...new Set(todas)].sort((a, b) => a.localeCompare(b));
-	}, [itens]);
-
+	const categorias = useMemo(() => [...new Set(itens.map((i) => i.categoria))].sort((a, b) => a.localeCompare(b)), [itens]);
 	const requisicoesAtivasGerais = useMemo(() => requisicoes.filter(isActiveRequest), [requisicoes]);
-
 	const requisicoesAtivasDoUtilizador = useMemo(() => {
 		if (!utilizadorAtual) return [];
 		return requisicoesAtivasGerais.filter((r) => r.id_user === utilizadorAtual.id_user);
 	}, [requisicoesAtivasGerais, utilizadorAtual]);
-
 	const requisicaoAtivaPorItem = useMemo(() => {
 		const map = new Map<number, ApiItemRequest>();
 		for (const r of requisicoesAtivasDoUtilizador) map.set(r.id_item, r);
 		return map;
 	}, [requisicoesAtivasDoUtilizador]);
-
 	const itemBloqueadoPorOutraRequisicao = useMemo(() => {
 		const map = new Map<number, boolean>();
 		if (!utilizadorAtual) return map;
@@ -192,50 +323,62 @@ export default function InventoryPage() {
 		}
 		return map;
 	}, [requisicoesAtivasGerais, utilizadorAtual]);
+	const requisicoesAtivas = useMemo(() => itens.filter((i) => requisicaoAtivaPorItem.has(i.id)), [itens, requisicaoAtivaPorItem]);
 
-	const requisicoesAtivas = useMemo(
-		() => itens.filter((item) => requisicaoAtivaPorItem.has(item.id)),
-		[itens, requisicaoAtivaPorItem],
-	);
+	// ── Itens do utilizador (secção própria) ───────────────────────────────
+	const meusItens = useMemo(() => {
+		if (!utilizadorAtual) return [];
+		return itens.filter(i => i.id_dono === utilizadorAtual.id_user);
+	}, [itens, utilizadorAtual]);
 
-	const itensFiltrados = useMemo(() => {
-		return itens.filter((item) => {
-			const emPosseDoUtilizador = requisicaoAtivaPorItem.has(item.id);
-			const itemBloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
-			const estado = estadoDoItem(emPosseDoUtilizador, itemBloqueado);
-			const textoOk = `${item.nome} ${item.categoria}`.toLowerCase().includes(pesquisa.toLowerCase());
-			const categoriaOk = filtroCategoria === "todas" || item.categoria === filtroCategoria;
-			const estadoOk =
-				filtroEstado === "todos" ||
-				(filtroEstado === "disponivel" && estado === "Disponível") ||
-				(filtroEstado === "em-uso" && estado === "Em Uso") ||
-				(filtroEstado === "sem-stock" && estado === "Sem Stock");
-			return textoOk && categoriaOk && estadoOk;
-		});
-	}, [itens, requisicaoAtivaPorItem, itemBloqueadoPorOutraRequisicao, pesquisa, filtroCategoria, filtroEstado]);
+	// ── Itens filtrados pelo estado selecionado (excluindo os meus) ────────
+	const itensFiltrados = useMemo(() => itens.filter((item) => {
+		const isDono = utilizadorAtual !== null && item.id_dono === utilizadorAtual.id_user;
+		if (isDono) return false;
+
+		const emPosse = requisicaoAtivaPorItem.has(item.id);
+		const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+		const estado = estadoDoItem(emPosse, bloqueado);
+
+		const textoOk = `${item.nome} ${item.categoria}`.toLowerCase().includes(pesquisa.toLowerCase());
+		const catOk = filtroCategoria === "todas" || item.categoria === filtroCategoria;
+		const estadoOk =
+			(filtroEstado === "disponivel"   && estado === "Disponível") ||
+			(filtroEstado === "em-uso"       && estado === "Em Uso") ||
+			(filtroEstado === "indisponivel" && estado === "Indisponível");
+
+		return textoOk && catOk && estadoOk;
+	}), [itens, utilizadorAtual, requisicaoAtivaPorItem, itemBloqueadoPorOutraRequisicao, pesquisa, filtroCategoria, filtroEstado]);
+
+	// ── Counts for stat bar ──────────────────────────────────────────────────
+	const counts = useMemo(() => ({
+		total: itens.length,
+		disponiveis: itens.filter(i => {
+			const isDono = utilizadorAtual !== null && i.id_dono === utilizadorAtual.id_user;
+			const emPosse = requisicaoAtivaPorItem.has(i.id);
+			const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(i.id));
+			return !isDono && !emPosse && !bloqueado;
+		}).length,
+		emUso: requisicoesAtivasGerais.length,
+	}), [itens, utilizadorAtual, requisicaoAtivaPorItem, itemBloqueadoPorOutraRequisicao, requisicoesAtivasGerais]);
+
+	const LIMITE_REQUISICOES = 3;
 
 	async function requisitarItem(item: InventoryItem) {
 		if (!utilizadorAtual) { alert("Precisas de iniciar sessão para requisitar itens."); return; }
+		if (item.id_dono === utilizadorAtual.id_user) { alert("Não podes requisitar um item que tu próprio adicionaste."); return; }
 		if (requisicaoAtivaPorItem.has(item.id) || itemBloqueadoPorOutraRequisicao.get(item.id)) return;
+		if (requisicoesAtivas.length >= LIMITE_REQUISICOES) { alert(`Atingiste o limite de ${LIMITE_REQUISICOES} requisições ativas. Devolve um item antes de requisitar outro.`); return; }
 		setItemEmAcao(item.id);
 		try {
 			const res = await fetch(`${apiBase}/item-requests`, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				credentials: "include",
-				body: JSON.stringify({
-					request_date: hojeISO(), return_date: null,
-					id_item: item.id, id_user: utilizadorAtual.id_user,
-					delivery_status: 1, request_status: 1,
-				}),
+				method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ request_date: hojeISO(), return_date: null, id_item: item.id, id_user: utilizadorAtual.id_user, delivery_status: 1, request_status: 1 }),
 			});
 			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao requisitar item"));
 			await carregarDados();
-		} catch (error) {
-			alert(error instanceof Error ? error.message : "Não foi possível requisitar o item.");
-		} finally {
-			setItemEmAcao(null);
-		}
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível requisitar o item."); }
+		finally { setItemEmAcao(null); }
 	}
 
 	async function devolverItem(item: InventoryItem) {
@@ -244,241 +387,318 @@ export default function InventoryPage() {
 		setItemEmAcao(item.id);
 		try {
 			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				credentials: "include",
-				body: JSON.stringify({
-					request_date: request.request_date, return_date: hojeISO(),
-					id_item: request.id_item, id_user: request.id_user,
-					delivery_status: request.delivery_status, request_status: request.request_status,
-				}),
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ request_date: request.request_date, return_date: hojeISO(), id_item: request.id_item, id_user: request.id_user, delivery_status: request.delivery_status, request_status: request.request_status }),
 			});
 			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao devolver item"));
 			await carregarDados();
-		} catch (error) {
-			alert(error instanceof Error ? error.message : "Não foi possível devolver o item.");
-		} finally {
-			setItemEmAcao(null);
-		}
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível devolver o item."); }
+		finally { setItemEmAcao(null); }
 	}
 
 	async function removerItem(item: InventoryItem) {
-		if (requisicaoAtivaPorItem.has(item.id)) {
-			alert("Não é possível remover este item enquanto estiver em teu poder.");
-			return;
-		}
+		if (requisicaoAtivaPorItem.has(item.id)) { alert("Não é possível remover este item enquanto estiver em teu poder."); return; }
 		if (!window.confirm(`Remover o item "${item.nome}" do inventário?`)) return;
 		setItemEmAcao(item.id);
 		try {
 			const res = await fetch(`${apiBase}/items/${item.id}`, { method: "DELETE", credentials: "include" });
 			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao remover item"));
 			await carregarDados();
-		} catch (error) {
-			alert(error instanceof Error ? error.message : "Não foi possível remover o item.");
-		} finally {
-			setItemEmAcao(null);
-		}
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível remover o item."); }
+		finally { setItemEmAcao(null); }
 	}
 
+	const pillEstados: { label: string; value: ItemStatusFilter }[] = [
+		{ label: "Disponível",    value: "disponivel"   },
+		{ label: "Em Uso (meus)", value: "em-uso"       },
+		{ label: "Indisponível",  value: "indisponivel" },
+	];
+
+	const labelSecao: Record<ItemStatusFilter, string> = {
+		"disponivel":   "✦ Disponíveis para Requisitar",
+		"em-uso":       "↩ Em Uso por Mim",
+		"indisponivel": "✕ Indisponíveis",
+	};
+
 	return (
-		<div className="min-h-screen bg-gray-100 text-zinc-900">
-			<div className="mx-auto w-full max-w-6xl space-y-6 px-6 pt-6 pb-8">
+		<div style={{
+			minHeight: "100vh",
+			background: "radial-gradient(circle at center, #ffffff 0%, #f7f3f9 100%)",
+			fontFamily: FONTS.sans,
+			position: "relative",
+			overflow: "hidden",
+		}}>
+			{/* Círculos decorativos */}
+			<div style={{ position: "fixed", top: -200, left: -200, width: 600, height: 600, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(212,83,126,0.03)", pointerEvents: "none", zIndex: 0 }} />
+			<div style={{ position: "fixed", top: -200, left: -200, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.06)", background: "rgba(212,83,126,0.02)", pointerEvents: "none", zIndex: 0 }} />
+			<div style={{ position: "fixed", bottom: -150, right: -150, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(127,119,221,0.03)", pointerEvents: "none", zIndex: 0 }} />
+
+			<div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "32px 24px 60px" }}>
+
+				{/* ── Page header ─────────────────────────────────────────────────── */}
+				<div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
+					<div>
+						<p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.rose, fontWeight: 600, marginBottom: 6 }}>
+							Gestão de Material
+						</p>
+						<h1 style={{ fontFamily: FONTS.serif, fontSize: 42, fontWeight: 400, color: C.ink, lineHeight: 1, margin: 0 }}>
+							Inventário
+						</h1>
+					</div>
+					<Link
+						href="/inventario/novo"
+						style={{
+							display: "inline-flex", alignItems: "center", gap: 8,
+							background: C.purpleGrad, color: "#fff", padding: "12px 22px",
+							borderRadius: 12, fontSize: 11, fontWeight: 700,
+							letterSpacing: "0.15em", textTransform: "uppercase",
+							textDecoration: "none", transition: "all 0.2s",
+							boxShadow: "0 4px 16px rgba(30,19,48,0.25)",
+						}}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+							<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+						</svg>
+						Adicionar Item
+					</Link>
+				</div>
+
+				{/* ── Alerts ──────────────────────────────────────────────────────── */}
 				{!loadingSessao && !utilizadorAtual && (
-					<div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow">
-						Sessão não encontrada. Inicia sessão em{" "}
-						<Link href="/login" className="font-semibold underline">/login</Link>{" "}
-						para veres as tuas requisições corretamente.
+					<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.roseSoft, border: `1px solid rgba(201,75,115,0.2)`, color: C.rose, fontSize: 12 }}>
+						Sessão não encontrada. <Link href="/login" style={{ fontWeight: 700, color: C.rose }}>Inicia sessão</Link> para veres as tuas requisições corretamente.
 					</div>
 				)}
-
 				{loading && (
-					<div className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow">
+					<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
+						<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin 1s linear infinite" }}>
+							<path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round"/>
+						</svg>
 						A carregar inventário...
 					</div>
 				)}
-
 				{erro && (
-					<div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 shadow">
+					<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.roseSoft, border: `1px solid rgba(201,75,115,0.2)`, color: C.rose, fontSize: 12 }}>
 						{erro}
 					</div>
 				)}
 
-				<section className="grid gap-4 md:grid-cols-2">
-					{/* Minhas Requisições Ativas */}
-					<div className="rounded-xl bg-white p-5 shadow">
-						<h2 className="text-lg font-semibold">Minhas Requisições Ativas</h2>
-						<p className="mt-1 text-sm text-gray-600">
-							Tem <strong>{requisicoesAtivas.length}</strong> item(ns) em uso.
-						</p>
-						<div className="mt-4 space-y-3">
-							{requisicoesAtivas.length === 0 && (
-								<div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
-									Sem itens ativos no momento.
+				{/* ── Top grid: active requests + filters ─────────────────────────── */}
+				<div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 24, alignItems: "start" }}>
+
+					{/* Active requests */}
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
+						<div style={{ padding: "20px 20px 0" }}>
+							<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>
+								As Minhas
+							</p>
+							<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+								<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: 0 }}>
+									Requisições Ativas
+								</h2>
+								<span style={{
+									fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans,
+									padding: "3px 10px", borderRadius: 999,
+									background: requisicoesAtivas.length >= 3 ? C.roseLight : C.greenLight,
+									color: requisicoesAtivas.length >= 3 ? C.rose : C.green,
+								}}>
+									{requisicoesAtivas.length} / 3
+								</span>
+							</div>
+						</div>
+						<div style={{ padding: "0 20px 20px" }}>
+							{requisicoesAtivas.length === 0 ? (
+								<div style={{ borderRadius: 10, border: `1.5px dashed ${C.border}`, padding: "24px 16px", textAlign: "center" }}>
+									<div style={{ fontSize: 24, marginBottom: 8 }}>📦</div>
+									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>Nenhum item em teu poder.</p>
+								</div>
+							) : (
+								<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+									{requisicoesAtivas.map((item) => (
+										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+											<Avatar initials={item.visual} />
+											<div style={{ flex: 1, minWidth: 0 }}>
+												<p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nome}</p>
+												<p style={{ margin: "2px 0 0", fontSize: 11, color: C.muted }}>
+													Desde {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
+												</p>
+											</div>
+											<Badge estado="Em Uso" />
+										</div>
+									))}
 								</div>
 							)}
-							{requisicoesAtivas.map((item) => (
-								<article key={item.id} className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
-									<div className="flex items-start justify-between gap-3">
-										<div>
-											<h3 className="font-semibold">{item.nome}</h3>
-											<p className="mt-1 text-xs text-gray-500">
-												Em uso desde: {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
-											</p>
-										</div>
-										<span className="rounded-full bg-gray-800 px-3 py-1 text-xs font-semibold text-white">Em Uso</span>
-									</div>
-								</article>
-							))}
 						</div>
 					</div>
 
-					{/* ✅ Novo card de acesso rápido */}
-					<div className="rounded-xl bg-white p-5 shadow flex flex-col">
-						<h2 className="text-lg font-semibold">Adicionar Novo Item</h2>
-						<p className="mt-1 text-sm text-gray-600">
-							Clica no botão abaixo para adicionar um novo item ao inventário.
+					{/* Filters */}
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px" }}>
+						<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>
+							Pesquisa
 						</p>
-						<div className="mt-6 flex flex-1 items-center justify-center">
-							<Link
-								href="/inventario/novo/"
-								className="inline-flex items-center gap-2 rounded-lg bg-gray-700 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-gray-800 transition-colors"
+						<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: "0 0 20px" }}>
+							Filtros
+						</h2>
+
+						{/* Search input */}
+						<div style={{ position: "relative", marginBottom: 16 }}>
+							<svg xmlns="http://www.w3.org/2000/svg" width={15} height={15} fill="none" viewBox="0 0 24 24" stroke={C.muted} strokeWidth={2} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }}>
+								<circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" strokeLinecap="round" />
+							</svg>
+							<input
+								value={pesquisa}
+								onChange={(e) => setPesquisa(e.target.value)}
+								placeholder="Pesquisar por nome ou categoria..."
+								style={{
+									width: "100%", boxSizing: "border-box",
+									paddingLeft: 38, paddingRight: 14, paddingTop: 10, paddingBottom: 10,
+									background: C.surface, border: `1.5px solid ${C.border}`,
+									borderRadius: 10, fontSize: 13, color: C.ink,
+									outline: "none", fontFamily: FONTS.sans, transition: "border-color 0.15s",
+								}}
+								onFocus={e => (e.target.style.borderColor = C.rose)}
+								onBlur={e => (e.target.style.borderColor = C.border)}
+							/>
+						</div>
+
+						{/* Category select */}
+						<div style={{ marginBottom: 16 }}>
+							<p style={{ margin: "0 0 8px", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Categoria</p>
+							<select
+								value={filtroCategoria}
+								onChange={(e) => setFiltroCategoria(e.target.value)}
+								style={{
+									width: "100%", padding: "10px 14px",
+									background: C.surface, border: `1.5px solid ${C.border}`,
+									borderRadius: 10, fontSize: 13, color: C.ink,
+									outline: "none", fontFamily: FONTS.sans, appearance: "none", cursor: "pointer",
+								}}
 							>
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									className="h-4 w-4"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-									strokeWidth={2}
-								>
-									<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-								</svg>
-								Adicionar Item
-							</Link>
+								<option value="todas">Todas as Categorias</option>
+								{categorias.map((c) => <option key={c} value={c}>{c}</option>)}
+							</select>
+						</div>
+
+						{/* Estado pills — Disponível | Em Uso (meus) | Indisponível */}
+						<div>
+							<p style={{ margin: "0 0 10px", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Estado</p>
+							<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+								{pillEstados.map(p => (
+									<FilterPill key={p.value} label={p.label} active={filtroEstado === p.value} onClick={() => setFiltroEstado(p.value)} />
+								))}
+							</div>
 						</div>
 					</div>
-				</section>
+				</div>
 
-				{/* Filtros */}
-				<section className="rounded-xl bg-white p-5 shadow">
-					<h2 className="text-lg font-semibold">Filtros</h2>
-					<div className="mt-3 grid gap-3 md:grid-cols-3">
-						<input
-							value={pesquisa}
-							onChange={(e) => setPesquisa(e.target.value)}
-							placeholder="Pesquisar itens"
-							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-						/>
-						<select
-							value={filtroCategoria}
-							onChange={(e) => setFiltroCategoria(e.target.value)}
-							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
+				{/* ── Results header ───────────────────────────────────────────────── */}
+				<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+					<p style={{ margin: 0, fontSize: 12, color: C.muted }}>
+						<strong style={{ color: C.ink }}>{itensFiltrados.length}</strong> {itensFiltrados.length === 1 ? "item encontrado" : "itens encontrados"}
+					</p>
+					{(pesquisa || filtroCategoria !== "todas") && (
+						<button
+							onClick={() => { setPesquisa(""); setFiltroCategoria("todas"); }}
+							style={{ background: "none", border: "none", fontSize: 11, color: C.rose, cursor: "pointer", fontWeight: 600, letterSpacing: "0.08em", fontFamily: FONTS.sans }}
 						>
-							<option value="todas">Todas as Categorias</option>
-							{categorias.map((categoria) => (
-								<option key={categoria} value={categoria}>{categoria}</option>
-							))}
-						</select>
-						<select
-							value={filtroEstado}
-							onChange={(e) => setFiltroEstado(e.target.value as ItemStatusFilter)}
-							className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-						>
-							<option value="todos">Todos os Estados</option>
-							<option value="disponivel">Disponível</option>
-							<option value="em-uso">Em Uso</option>
-							<option value="sem-stock">Sem Stock</option>
-						</select>
+							Limpar filtros ×
+						</button>
+					)}
+				</div>
+
+				{/* ── Secção: Os Meus Itens ──────────────────────────────────────────── */}
+				{meusItens.length > 0 && (
+					<div style={{ marginBottom: 32 }}>
+						<div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+							<div style={{ flex: 1, height: 1, background: C.border }} />
+							<p style={{ margin: 0, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: C.muted, fontWeight: 700, whiteSpace: "nowrap" }}>
+								🗂 Os Meus Itens · {meusItens.length}
+							</p>
+							<div style={{ flex: 1, height: 1, background: C.border }} />
+						</div>
+						<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+							{meusItens.map((item) => {
+								const emPosse = requisicaoAtivaPorItem.has(item.id);
+								const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+								const estado = estadoDoItem(emPosse, bloqueado);
+								const isLoading = itemEmAcao === item.id;
+								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono bloqueado={bloqueado} isLoading={isLoading} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
+							})}
+						</div>
 					</div>
-				</section>
+				)}
 
-				{/* Lista de itens */}
-				<section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+				{/* ── Secção dinâmica consoante filtro de estado ───────────────────── */}
+				<div style={{ marginBottom: 8 }}>
+					<div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+						<div style={{ flex: 1, height: 1, background: C.border }} />
+						<p style={{ margin: 0, fontSize: 10, letterSpacing: "0.2em", textTransform: "uppercase", color: C.muted, fontWeight: 700, whiteSpace: "nowrap" }}>
+							{labelSecao[filtroEstado]} · {itensFiltrados.length}
+						</p>
+						<div style={{ flex: 1, height: 1, background: C.border }} />
+					</div>
+				</div>
+
+				{/* ── Item grid ────────────────────────────────────────────────────── */}
+				<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
 					{itensFiltrados.map((item) => {
-						const emPosseDoUtilizador = requisicaoAtivaPorItem.has(item.id);
-						const itemBloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
-						const estado = estadoDoItem(emPosseDoUtilizador, itemBloqueado);
-
+						const emPosse = requisicaoAtivaPorItem.has(item.id);
+						const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+						const estado = estadoDoItem(emPosse, bloqueado);
+						const isLoading = itemEmAcao === item.id;
 						return (
-							<article key={item.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-								{item.imagem_url && (
-									<div
-										className="mb-3 cursor-pointer overflow-hidden rounded-lg hover:opacity-80 transition-opacity"
-										onClick={() => setImagemAmpliada(item.imagem_url!)}
-									>
-										<img src={item.imagem_url} alt={item.nome} className="h-32 w-full object-cover" />
-									</div>
-								)}
-								<div className="mb-3 flex items-center justify-between">
-									<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-xs font-bold text-white">
-										{item.visual}
-									</div>
-									<span className={`rounded-full px-3 py-1 text-xs font-semibold ${
-										estado === "Disponível" ? "bg-green-100 text-green-700"
-										: estado === "Em Uso" ? "bg-amber-100 text-amber-700"
-										: "bg-rose-100 text-rose-700"
-									}`}>
-										{estado}
-									</span>
-								</div>
-								<h3 className="text-base font-semibold">{item.nome}</h3>
-								<p className="mt-2 text-xs text-gray-500">Categoria: {item.categoria}</p>
-								<p className="mt-1 text-xs text-gray-500">Estado: {estadoInternoItem(item.status)}</p>
-								<p className="mt-1 text-xs text-gray-500">
-									Origem: {item.adicionadoPorUtilizador ? "Adicionado por utilizador" : "Catálogo da escola"}
-								</p>
-								<div className="mt-4 grid gap-2">
-									{emPosseDoUtilizador ? (
-										<button
-											onClick={() => devolverItem(item)}
-											className="w-full rounded-lg bg-gray-700 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-										>
-											Devolver Item
-										</button>
-									) : (
-										<button
-											onClick={() => requisitarItem(item)}
-											disabled={loadingSessao || itemBloqueado || itemEmAcao === item.id}
-											className="w-full rounded-lg bg-gray-500 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-gray-300 hover:enabled:bg-gray-600"
-										>
-											Requisitar Item
-										</button>
-									)}
-									{item.adicionadoPorUtilizador && !emPosseDoUtilizador && (
-										<button
-											onClick={() => removerItem(item)}
-											disabled={loadingSessao || itemEmAcao === item.id}
-											className="w-full rounded-lg border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 hover:enabled:bg-rose-100"
-										>
-											Remover Item
-										</button>
-									)}
-								</div>
-							</article>
+							<ItemCard
+								key={item.id}
+								item={item}
+								estado={estado}
+								emPosse={emPosse}
+								isDono={false}
+								bloqueado={bloqueado}
+								isLoading={isLoading}
+								limiteAtingido={requisicoesAtivas.length >= 3}
+								onRequisitar={requisitarItem}
+								onDevolver={devolverItem}
+								onRemover={removerItem}
+								onAmpliada={setImagemAmpliada}
+							/>
 						);
 					})}
-				</section>
+
+					{/* Empty state */}
+					{!loading && itensFiltrados.length === 0 && (
+						<div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "60px 20px" }}>
+							<div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+							<p style={{ fontFamily: FONTS.serif, fontSize: 24, color: C.inkMid, margin: "0 0 8px" }}>Nenhum item encontrado</p>
+							<p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Tenta ajustar os filtros ou adiciona um novo item.</p>
+						</div>
+					)}
+				</div>
 			</div>
 
+			{/* ── Image modal ──────────────────────────────────────────────────────── */}
 			{imagemAmpliada && (
 				<div
-					className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4"
+					style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(28,24,40,0.75)", backdropFilter: "blur(4px)" }}
 					onClick={() => setImagemAmpliada(null)}
 				>
 					<div
-						className="relative max-h-[90vh] max-w-[90vw] overflow-auto rounded-lg bg-white"
-						onClick={(e) => e.stopPropagation()}
+						style={{ position: "relative", maxHeight: "90vh", maxWidth: "90vw", borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.35)" }}
+						onClick={e => e.stopPropagation()}
 					>
 						<button
 							onClick={() => setImagemAmpliada(null)}
-							className="absolute right-2 top-2 rounded-lg bg-gray-800/80 p-2 text-white hover:bg-gray-900 z-10"
-						>
-							✕
-						</button>
-						<img src={imagemAmpliada} alt="Imagem ampliada" className="h-auto w-full" />
+							style={{ position: "absolute", top: 12, right: 12, zIndex: 10, background: "rgba(28,24,40,0.8)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 12px", fontSize: 13, cursor: "pointer", fontFamily: FONTS.sans }}
+						>✕</button>
+						<img src={imagemAmpliada} alt="Imagem ampliada" style={{ display: "block", maxHeight: "90vh", maxWidth: "90vw", objectFit: "contain" }} />
 					</div>
 				</div>
 			)}
+
+			<style>{`
+				@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=DM+Sans:wght@400;500;600;700&display=swap');
+				@keyframes spin { to { transform: rotate(360deg); } }
+				* { box-sizing: border-box; }
+			`}</style>
 		</div>
 	);
 }
