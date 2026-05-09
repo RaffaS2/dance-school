@@ -7,6 +7,6 @@ router.post('/',     authorize(1),       createUser)
 router.get('/',      authorize(1),       readAllUsers)        
 router.get('/:id',   authorize(1, 2, 3), readUserById)        
 router.put('/:id',   authorize(1),       updateUser)          
-router.delete('/:id',authorize(1),       deleteUser)          
+router.delete('/:id',authorize(1, 2, 3),       deleteUser)          
 
 module.exports = router

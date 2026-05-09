@@ -88,13 +88,6 @@ export default function Register() {
       <div className="absolute rounded-full border border-[rgba(212,83,126,0.08)] pointer-events-none"
         style={{ width: 400, height: 400, bottom: -150, right: -150, background: 'rgba(127, 119, 221, 0.03)' }} />
 
-      {/* Botão voltar à página inicial */}
-      <Link href="/" className="absolute top-5 left-5 z-20 flex items-center gap-1.5 text-[12px] text-[#9a9a9a] hover:text-[#D4537E] transition-colors duration-200 no-underline group">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Página inicial
-      </Link>
 
       {/* Logo */}
       <div className="text-center -mt-8 mb-0.5 relative z-10">
@@ -102,7 +95,7 @@ export default function Register() {
       </div>
 
       {/* Card */}
-      <div className="relative z-10 w-[90%] max-w-[400px] bg-white shadow-[0_20px_40px_rgba(0,0,0,0.04)] border border-[#f0f0f0] rounded-xl px-8 py-10">
+      <div className="relative z-10 w-[90%] max-w-[400px] bg-white shadow-[0_20px_40px_rgba(0,0,0,0.04)] border border-[#f0f0f0] rounded-xl px-8 py-10 mb-36">
 
         <h2 className="font-['Cormorant_Garamond',serif] text-2xl font-normal text-[#1a1a1a] mb-1.5">Criar conta</h2>
         <p className="text-[13px] text-[#7a7a7a] mb-7">Junta-te à comunidade EntArtes</p>

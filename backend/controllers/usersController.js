@@ -75,10 +75,25 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
     try {
         const { id } = req.params
-        const result = await pool.query(
-            'DELETE FROM users WHERE id_user = $1 RETURNING *',
-            [id]
+
+        // Descobre o tipo do user primeiro
+        const userResult = await pool.query(
+            'SELECT id_user_type FROM users WHERE id_user = $1', [id]
         )
+        const user = userResult.rows[0]
+
+        // Apaga na tabela correta
+        if (parseInt(user.id_user_type) === 2) {
+            await pool.query('DELETE FROM professors WHERE id_user = $1', [id])
+        } else if (parseInt(user.id_user_type) === 3) {
+            await pool.query('DELETE FROM students WHERE id_user = $1', [id])
+        }
+
+        // Apaga o user
+        const result = await pool.query(
+            'DELETE FROM users WHERE id_user = $1 RETURNING *', [id]
+        )
+
         res.status(204).json(result.rows[0])
     } catch (error) {
         res.status(500).json({ error: error.message })

@@ -10,7 +10,7 @@ export default function AppFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-slate-800 bg-slate-900 text-slate-100">
+    <footer className="bg-[#847a92] text-slate-100">
       <div className="mx-auto w-full max-w-7xl px-6 py-6 text-sm">
         <div className="flex flex-col items-center justify-between gap-3 md:flex-row">
           <div className="text-center md:text-left">
