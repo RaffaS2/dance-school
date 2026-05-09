@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import Image from 'next/image'
 import loginForm from './loginForm'
 
-export default function LoginPage() {
+export default function loginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden font-['Jost',sans-serif] bg-[radial-gradient(circle_at_center,_#ffffff_0%,_#f7f3f9_100%)]">
 
