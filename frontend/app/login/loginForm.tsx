@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getApiBase } from '../lib/apiBase'
 
-export default function LoginForm() {
+export default function loginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const apiBase = getApiBase()
