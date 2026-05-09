@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { getApiBase } from "../lib/apiBase";
+import { getApiBase } from "../../lib/apiBase";
 
 interface Coaching {
   id: number;

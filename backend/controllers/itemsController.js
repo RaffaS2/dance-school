@@ -6,9 +6,10 @@ const pool = require('../db')
 const createItem = async (req, res) => {
     try {
         const { name, status, id_category, image_url } = req.body
+        const id_user = req.user?.id ?? null  // vem do middleware authorize
         const result = await pool.query(
-            'INSERT INTO items (name, status, id_category, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
-            [name, status, id_category, image_url || null]
+            'INSERT INTO items (name, status, id_category, image_url, id_user) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [name, status, id_category, image_url || null, id_user]
         )
         res.status(201).json(result.rows[0])
     } catch (error) {
