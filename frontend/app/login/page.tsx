@@ -1,8 +1,8 @@
 import { Suspense } from 'react'
 import Image from 'next/image'
-import loginForm from './loginForm'
+import LoginForm from './LoginForm'
 
-export default function loginPage() {
+export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden font-['Jost',sans-serif] bg-[radial-gradient(circle_at_center,_#ffffff_0%,_#f7f3f9_100%)]">
 
@@ -24,7 +24,7 @@ export default function loginPage() {
       </div>
 
       <Suspense fallback={<div className="text-sm text-gray-400">A carregar...</div>}>
-        <loginForm />
+        <LoginForm />
       </Suspense>
 
     </div>
