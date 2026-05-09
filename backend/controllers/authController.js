@@ -13,7 +13,7 @@ const transporter = nodemailer.createTransport({
   },
 })
 
-// ─── REGISTER ────────────────────────────────────────────────────────────────
+// Registo
 exports.register = async (req, res) => {
   const { name, email, phone, password, id_user_type } = req.body
 
@@ -24,7 +24,7 @@ exports.register = async (req, res) => {
   try {
     const password_hash = await bcrypt.hash(password, 10)
 
-    // ── Professor → registo pendente ─────────────────────────────────────────
+    // Professor - registo pendente
     if (parseInt(id_user_type) === 2) {
       const existing = await pool.query(
         'SELECT id FROM pending_teachers WHERE email = $1', [email]
@@ -82,7 +82,7 @@ exports.register = async (req, res) => {
       })
     }
 
-    // ── Encarregado → registo imediato ───────────────────────────────────────
+    // Encarregado - registo imediato 
     const existingUser = await pool.query(
       'SELECT id_user FROM users WHERE email = $1', [email]
     )
@@ -109,7 +109,7 @@ exports.register = async (req, res) => {
   }
 }
 
-// ─── LOGIN ───────────────────────────────────────────────────────────────────
+// Login 
 exports.login = async (req, res) => {
   const { email, password } = req.body
 
@@ -152,7 +152,7 @@ exports.login = async (req, res) => {
   }
 }
 
-// ─── FORGOT PASSWORD ─────────────────────────────────────────────────────────
+// Esquecer password
 exports.forgotPassword = async (req, res) => {
   const { email } = req.body
 
@@ -198,7 +198,7 @@ exports.forgotPassword = async (req, res) => {
   }
 }
 
-// ─── RESET PASSWORD ──────────────────────────────────────────────────────────
+// Reset password
 exports.resetPassword = async (req, res) => {
   const { token, password } = req.body
 
@@ -225,7 +225,7 @@ exports.resetPassword = async (req, res) => {
   }
 }
 
-// ─── CHANGE PASSWORD (sessão autenticada) ───────────────────────────────────
+// mudar password (sessão autenticada)
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body
   const userId = req.user?.id
@@ -269,13 +269,13 @@ exports.changePassword = async (req, res) => {
   }
 }
 
-// ─── LOGOUT ──────────────────────────────────────────────────────────────────
+// Logout
 exports.logout = (req, res) => {
   res.clearCookie('token')
   return res.status(200).json({ message: 'Logout com sucesso.' })
 }
 
-// ─── APPROVE TEACHER ─────────────────────────────────────────────────────────
+// Aprovar professor
 exports.approveTeacher = async (req, res) => {
   const { token } = req.query
 
@@ -355,7 +355,7 @@ exports.approveTeacher = async (req, res) => {
   }
 }
 
-// ─── ME (sessão atual) ───────────────────────────────────────────────────────
+// Me (sessão atual)
 exports.me = async (req, res) => {
   try {
     const token = req.cookies?.token

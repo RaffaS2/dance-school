@@ -509,7 +509,7 @@ export default function InventoryPage() {
 						<div style={{ padding: "0 20px 20px" }}>
 							{requisicoesAtivas.length === 0 ? (
 								<div style={{ borderRadius: 10, border: `1.5px dashed ${C.border}`, padding: "24px 16px", textAlign: "center" }}>
-									<div style={{ fontSize: 24, marginBottom: 8 }}>📦</div>
+									<div style={{ fontSize: 24, marginBottom: 8 }}></div>
 									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>Nenhum item em teu poder.</p>
 								</div>
 							) : (
@@ -675,7 +675,7 @@ export default function InventoryPage() {
 				</div>
 			</div>
 
-			{/* ── Image modal ──────────────────────────────────────────────────────── */}
+			{/*Image modal */}
 			{imagemAmpliada && (
 				<div
 					style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(28,24,40,0.75)", backdropFilter: "blur(4px)" }}

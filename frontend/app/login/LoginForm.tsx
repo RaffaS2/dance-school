@@ -5,6 +5,13 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { getApiBase } from '../lib/apiBase'
 
+type SessionUser = {
+  id_user: number;
+  name: string;
+  email: string;
+  id_user_type: number;
+}
+
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -34,8 +41,26 @@ export default function LoginForm() {
         return
       }
 
-      const redirect = searchParams.get('redirect') || '/dashboard'
-      router.push(redirect)
+      const meRes = await fetch(`${apiBase}/auth/me`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      const meData = await meRes.json()
+      const user = meData.user as SessionUser
+
+      const redirect = searchParams.get('redirect')
+
+      if (redirect && redirect !== '/') {
+        router.push(redirect)
+      } else if (user.id_user_type === 1) {
+        router.push('/admin/dashboard')
+      } else if (user.id_user_type === 2 || user.id_user_type === 3) {
+        router.push('/calendario')
+      } else {
+        router.push('/calendario')
+      }
+
     } catch (err) {
       setError('Não foi possível ligar ao servidor. Verifica a tua ligação.')
     } finally {
