@@ -8,22 +8,22 @@ async function getData() {
 
   const headers: HeadersInit = token ? { Cookie: `token=${token}` } : {};
 
-  const sessao = await fetch("http://localhost:3001/api/auth/me", { cache: "no-store", headers })
+  const sessao = await fetch("http://localhost:3001/auth/me", { cache: "no-store", headers })
     .then(r => r.ok ? r.json() : null);
 
   const tipoUtilizador = sessao?.user?.id_user_type;
 
   const alunosPromise = tipoUtilizador === 3
-    ? fetch("http://localhost:3001/api/students/me", { cache: "no-store", headers })
+    ? fetch("http://localhost:3001/students/me", { cache: "no-store", headers })
         .then(r => r.ok ? r.json().then(d => [d]) : [])
-    : fetch("http://localhost:3001/api/students", { cache: "no-store", headers })
+    : fetch("http://localhost:3001/students", { cache: "no-store", headers })
         .then(r => r.json());
 
   const [prof, alunos, mods, est] = await Promise.all([
-    fetch("http://localhost:3001/api/professors", { cache: "no-store", headers }).then(r => r.json()),
+    fetch("http://localhost:3001/professors", { cache: "no-store", headers }).then(r => r.json()),
     alunosPromise,
-    fetch("http://localhost:3001/api/modalities", { cache: "no-store", headers }).then(r => r.json()),
-    fetch("http://localhost:3001/api/studios", { cache: "no-store", headers }).then(r => r.json()),
+    fetch("http://localhost:3001/modalities", { cache: "no-store", headers }).then(r => r.json()),
+    fetch("http://localhost:3001/studios", { cache: "no-store", headers }).then(r => r.json()),
   ]);
 
   return { prof, alunos, mods, est, sessao };
