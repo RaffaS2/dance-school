@@ -28,14 +28,11 @@ export default function EditarPerfilPage() {
         credentials: "include",
         cache: "no-store",
       });
-      if (!res.ok) {
-        setUser(null);
-        return;
-      }
+      if (!res.ok) { setUser(null); return; }
       const data = (await res.json()) as { user: SessionUser };
       setUser(data.user);
       setNovoNome(data.user.name);
-    } catch (e) {
+    } catch {
       setError("Erro ao carregar dados de perfil.");
       setUser(null);
     } finally {
@@ -43,21 +40,12 @@ export default function EditarPerfilPage() {
     }
   }, [apiBase]);
 
-  useEffect(() => {
-    void carregarSessao();
-  }, [carregarSessao]);
+  useEffect(() => { void carregarSessao(); }, [carregarSessao]);
 
   async function guardarAlteracoes(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    if (!novoNome.trim()) {
-      setError("O nome não pode estar vazio.");
-      return;
-    }
-
-    if (!user) {
-      setError("Não há sessão ativa.");
-      return;
-    }
+    if (!novoNome.trim()) { setError("O nome não pode estar vazio."); return; }
+    if (!user) { setError("Não há sessão ativa."); return; }
 
     setSubmitting(true);
     setError("");
@@ -71,6 +59,7 @@ export default function EditarPerfilPage() {
         body: JSON.stringify({
           name: novoNome.trim(),
           email: user.email,
+          id_user_type: user.id_user_type, // ✅ campo obrigatório adicionado
         }),
       });
 
@@ -112,9 +101,7 @@ export default function EditarPerfilPage() {
 
               <form onSubmit={guardarAlteracoes} className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nome</label>
                   <input
                     type="text"
                     value={novoNome}
@@ -122,24 +109,18 @@ export default function EditarPerfilPage() {
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 outline-none focus:border-gray-500"
                     placeholder="O teu nome"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Este é o nome que aparece no teu perfil.
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">Este é o nome que aparece no teu perfil.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                   <input
                     type="email"
                     value={user.email}
                     disabled
                     className="w-full rounded-lg border border-gray-300 bg-gray-100 px-4 py-2 text-gray-500 outline-none cursor-not-allowed"
                   />
-                  <p className="mt-1 text-xs text-gray-500">
-                    O email não pode ser alterado neste momento.
-                  </p>
+                  <p className="mt-1 text-xs text-gray-500">O email não pode ser alterado neste momento.</p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
@@ -151,10 +132,7 @@ export default function EditarPerfilPage() {
                     {submitting ? "A guardar..." : "Guardar Alterações"}
                   </button>
                   <Link href="/perfil">
-                    <button
-                      type="button"
-                      className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 font-medium hover:bg-gray-50"
-                    >
+                    <button type="button" className="rounded-lg border border-gray-300 px-6 py-2 text-gray-700 font-medium hover:bg-gray-50">
                       Cancelar
                     </button>
                   </Link>

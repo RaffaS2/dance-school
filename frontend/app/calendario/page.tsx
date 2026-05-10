@@ -27,7 +27,7 @@ type ApiCoaching = {
   price: number;
 };
 
-// Replaces the `any` that was used when finding the professor
+
 type ApiProfessor = {
   id_professor: number;
   id_user: number;
@@ -58,17 +58,38 @@ function formatTimeLabel(value: string) {
   return value?.slice(0, 5);
 }
 
-function estadoColor(status: string) {
-  switch (status?.toLowerCase()) {
-    case "confirmado":
-      return "bg-emerald-100 text-emerald-700";
-    case "pendente":
-      return "bg-amber-100 text-amber-700";
-    case "cancelado":
-      return "bg-rose-100 text-rose-700";
-    default:
-      return "bg-slate-100 text-slate-600";
-  }
+// ── Paleta ────────────────────────────────────────────────────────────────────
+const C = {
+  rose:      "#C94B73",
+  roseLight: "rgba(201,75,115,0.10)",
+  roseSoft:  "rgba(201,75,115,0.06)",
+  ink:       "#1C1828",
+  inkMid:    "#3D3553",
+  muted:     "#8B87A0",
+  border:    "#EDE9F4",
+  surface:   "#FAFAF8",
+  white:     "#FFFFFF",
+  purpleGrad:"linear-gradient(135deg,#3B2B5C 0%,#1E1330 100%)",
+  green:     "#1A9E5C",
+  greenLight:"rgba(26,158,92,0.10)",
+  amber:     "#C97A1A",
+  amberLight:"rgba(201,122,26,0.10)",
+  red:       "#D63B3B",
+  redLight:  "rgba(214,59,59,0.10)",
+};
+
+const FONTS = {
+  serif: "'Cormorant Garamond', serif",
+  sans:  "'DM Sans', sans-serif",
+};
+
+function estadoBadge(status: string) {
+  const s = status?.toLowerCase();
+  if (s === "confirmado") return { bg: C.greenLight, color: C.green };
+  if (s === "pendente")   return { bg: C.amberLight, color: C.amber };
+  if (s === "cancelado")  return { bg: C.roseLight,  color: C.rose  };
+  return { bg: "rgba(139,135,160,0.10)", color: C.muted };
+
 }
 
 export default function CalendarioPage() {
@@ -89,55 +110,40 @@ export default function CalendarioPage() {
       if (!res.ok) { setUtilizadorAtual(null); return; }
       const data = await res.json() as { user: SessionUser };
       setUtilizadorAtual(data.user);
-    } catch {
-      setUtilizadorAtual(null);
-    } finally {
-      setLoadingSessao(false);
-    }
+
+    } catch { setUtilizadorAtual(null); }
+    finally { setLoadingSessao(false); }
   }, [apiBase]);
 
   const carregarCoachings = useCallback(async (user: SessionUser) => {
-    setErro("");
-    setLoading(true);
+    setErro(""); setLoading(true);
     try {
       let url = "";
-
       if (user.id_user_type === 2) {
         const profRes = await fetch(`${apiBase}/professors`, { credentials: "include" });
-        if (!profRes.ok) throw new Error("Falha ao carregar professores.");
+        if (!profRes.ok) throw new Error();
         const profs = await profRes.json() as ApiProfessor[];
         const prof = profs.find((p) => p.id_user === user.id_user);
-        if (!prof) {
-          setCoachings([]);
-          setErro("Professor não encontrado para esta conta.");
-          return;
-        }
+        if (!prof) { setCoachings([]); return; }
+
         url = `${apiBase}/coachings/professor/${prof.id_professor}`;
       } else if (user.id_user_type === 3) {
         url = `${apiBase}/coachings/guardian/${user.id_user}`;
       } else {
-        setCoachings([]);
-        setErro("A conta de administração não tem acesso ao calendário.");
-        return;
+        setCoachings([]); return;
       }
-
       const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) throw new Error("Falha ao carregar coachings.");
+      if (!res.ok) throw new Error();
       setCoachings(await res.json() as ApiCoaching[]);
-    } catch {
-      setErro("Não foi possível carregar os coachings.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { setErro("Não foi possível carregar os coachings."); }
+    finally { setLoading(false); }
   }, [apiBase]);
 
   useEffect(() => { void carregarSessao(); }, [carregarSessao]);
-
   useEffect(() => {
     if (!loadingSessao && utilizadorAtual) void carregarCoachings(utilizadorAtual);
     else if (!loadingSessao && !utilizadorAtual) setLoading(false);
   }, [loadingSessao, utilizadorAtual, carregarCoachings]);
-
   useEffect(() => {
     if (!dataSelecionada) setDataSelecionada(toIsoDate(new Date()));
   }, [dataSelecionada]);
@@ -158,12 +164,10 @@ export default function CalendarioPage() {
     const firstDayIndex = (firstDay.getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
-
     return Array.from({ length: 42 }, (_, idx) => {
       const dayNumber = idx - firstDayIndex + 1;
       let dateObj: Date;
       let isCurrentMonth = true;
-
       if (dayNumber <= 0) {
         dateObj = new Date(year, month - 1, daysInPrevMonth + dayNumber);
         isCurrentMonth = false;
@@ -173,144 +177,148 @@ export default function CalendarioPage() {
       } else {
         dateObj = new Date(year, month, dayNumber);
       }
-
       const iso = toIsoDate(dateObj);
-      return {
-        iso,
-        day: dateObj.getDate(),
-        isCurrentMonth,
-        events: coachingsPorData[iso] ?? [],
-      };
+      return { iso, day: dateObj.getDate(), isCurrentMonth, events: coachingsPorData[iso] ?? [] };
     });
   }, [mesAtual, coachingsPorData]);
 
   const eventosSelecionados = dataSelecionada ? (coachingsPorData[dataSelecionada] ?? []) : [];
   const hojeIso = toIsoDate(new Date());
-
   const navegarMes = (offset: number) => {
     setMesAtual((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
   };
 
   return (
-    <div
-      className="min-h-screen text-slate-900"
-      style={{
-        background: "radial-gradient(circle at center, #ffffff 0%, #f7f3f9 100%)",
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      {/* Decorative circles — same as inventory */}
+    <div style={{
+      minHeight: "100vh",
+      background: "radial-gradient(circle at center, #ffffff 0%, #f7f3f9 100%)",
+      fontFamily: FONTS.sans,
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Círculos decorativos */}
       <div style={{ position: "fixed", top: -200, left: -200, width: 600, height: 600, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(212,83,126,0.03)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", top: -200, left: -200, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.06)", background: "rgba(212,83,126,0.02)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", bottom: -150, right: -150, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(127,119,221,0.03)", pointerEvents: "none", zIndex: 0 }} />
 
-      <style jsx global>{`
-        @import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
-        :root {
-          --font-display: "DM Serif Display", ui-serif, Georgia, serif;
-          --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-        }
-      `}</style>
+      <div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "32px 24px 60px" }}>
 
-      <div
-        className="mx-auto w-full max-w-6xl px-6 pb-10 pt-8"
-        style={{ fontFamily: "var(--font-body)", position: "relative", zIndex: 1 }}
-      >
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        {/* ── Header ──────────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Calendario</p>
-            <h1 className="mt-2 text-3xl md:text-4xl" style={{ fontFamily: "var(--font-display)" }}>
+            <p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.rose, fontWeight: 600, marginBottom: 6 }}>Calendário</p>
+            <h1 style={{ fontFamily: FONTS.serif, fontSize: 42, fontWeight: 400, color: C.ink, lineHeight: 1, margin: "0 0 10px" }}>
               Agenda de Coachings
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-600">
-              Visualiza os teus coachings por dia e encontra rapidamente detalhes de horario, modalidade e estudio.
+            <p style={{ fontSize: 13, color: C.muted, margin: 0, maxWidth: 480 }}>
+              Visualiza os teus coachings por dia e encontra rapidamente detalhes de horário, modalidade e estúdio.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navegarMes(-1)}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300"
-            >
-              Mes anterior
-            </button>
-            <button
-              onClick={() => navegarMes(1)}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:border-slate-300"
-            >
-              Proximo mes
-            </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            {[{ label: "Mês anterior", offset: -1 }, { label: "Próximo mês", offset: 1 }].map(btn => (
+              <button key={btn.label} onClick={() => navegarMes(btn.offset)}
+                style={{ padding: "10px 18px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.white, color: C.inkMid, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.sans, transition: "all 0.15s", boxShadow: "0 2px 8px rgba(28,24,40,0.04)" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.rose}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = C.border}
+              >
+                {btn.label}
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* ── Alerts ──────────────────────────────────────────────────────── */}
         {!loadingSessao && !utilizadorAtual && (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900 shadow">
-            Sessao nao encontrada. Inicia sessao em{" "}
-            <Link href="/login" className="font-semibold underline">/login</Link>{" "}
-            para veres o teu calendario.
+          <div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.roseSoft, border: `1px solid rgba(201,75,115,0.2)`, color: C.rose, fontSize: 12 }}>
+            Sessão não encontrada. <Link href="/login" style={{ fontWeight: 700, color: C.rose }}>Inicia sessão</Link>.
           </div>
         )}
-
         {loading && (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600 shadow">
+          <div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" /></svg>
             A carregar coachings...
           </div>
         )}
-
         {erro && (
-          <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-700 shadow">
-            {erro}
-          </div>
+          <div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.roseSoft, border: `1px solid rgba(201,75,115,0.2)`, color: C.rose, fontSize: 12 }}>{erro}</div>
         )}
 
+        {/* ── Main grid ───────────────────────────────────────────────────── */}
         {!loading && utilizadorAtual && !erro && (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,_1.2fr)_minmax(0,_0.8fr)]">
-            <section className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-800">{formatMonthTitle(mesAtual)}</h2>
-                <div className="text-xs text-slate-500">{coachings.length} coaching(s)</div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 0.7fr)",
+            gap: 20,
+            alignItems: "start", // ← KEY FIX: prevents columns stretching each other
+          }}>
+
+            {/* ── Calendar ──────────────────────────────────────────────── */}
+            <section style={{ background: C.white, borderRadius: 20, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: 20 }}>
+              {/* Month header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: C.ink, textTransform: "capitalize" }}>{formatMonthTitle(mesAtual)}</h2>
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{coachings.length} coaching(s)</span>
               </div>
-              <div className="mt-4 grid grid-cols-7 gap-2 text-xs text-slate-500">
-                {weekDays.map((day) => (
-                  <div key={day} className="text-center font-semibold uppercase tracking-[0.15em]">
-                    {day}
-                  </div>
+
+              {/* Week day headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
+                {weekDays.map(d => (
+                  <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, paddingBottom: 6 }}>{d}</div>
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-7 gap-2">
+
+              {/* Day cells */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
                 {diasCalendario.map((dia) => {
                   const isSelected = dia.iso === dataSelecionada;
                   const isToday = dia.iso === hojeIso;
+                  const hasEvents = dia.events.length > 0;
+
                   return (
                     <button
                       key={dia.iso}
                       onClick={() => setDataSelecionada(dia.iso)}
-                      className={`group flex min-h-[92px] flex-col rounded-2xl border p-2 text-left transition ${
-                        dia.isCurrentMonth ? "border-slate-200 bg-white" : "border-transparent bg-slate-50/70 text-slate-400"
-                      } ${
-                        isSelected ? "border-slate-900 bg-slate-900 text-white" : "hover:border-slate-300"
-                      } ${
-                        isToday && !isSelected ? "border-amber-400" : ""
-                      }`}
+                      style={{
+                        minHeight: 80,
+                        borderRadius: 12,
+                        padding: "8px 6px",
+                        border: isSelected
+                          ? "1.5px solid transparent"
+                          : isToday
+                          ? `1.5px solid ${C.amber}`
+                          : `1.5px solid ${dia.isCurrentMonth ? C.border : "transparent"}`,
+                        background: isSelected
+                          ? C.purpleGrad
+                          : dia.isCurrentMonth ? C.white : C.surface,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        transition: "all 0.15s",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                        opacity: dia.isCurrentMonth ? 1 : 0.45,
+                      }}
+                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = C.rose; }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = isToday ? C.amber : dia.isCurrentMonth ? C.border : "transparent"; }}
                     >
-                      <span className="text-xs font-semibold">
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? "#fff" : isToday ? C.amber : C.ink }}>
                         {dia.day}
                       </span>
-                      <div className="mt-2 space-y-1">
-                        {dia.events.slice(0, 2).map((event) => (
-                          <div
-                            key={`${dia.iso}-${event.id_coaching}`}
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                              isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
-                            }`}
-                          >
-                            {event.modalidade}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {dia.events.slice(0, 2).map(ev => (
+                          <div key={ev.id_coaching} style={{
+                            borderRadius: 4, padding: "2px 5px", fontSize: 9, fontWeight: 600,
+                            background: isSelected ? "rgba(255,255,255,0.2)" : C.roseLight,
+                            color: isSelected ? "#fff" : C.rose,
+                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                          }}>
+                            {ev.modalidade}
                           </div>
                         ))}
                         {dia.events.length > 2 && (
-                          <div className={`text-[11px] ${isSelected ? "text-white/80" : "text-slate-400"}`}>
+                          <span style={{ fontSize: 9, color: isSelected ? "rgba(255,255,255,0.7)" : C.muted }}>
                             +{dia.events.length - 2} mais
-                          </div>
+                          </span>
                         )}
                       </div>
                     </button>
@@ -319,58 +327,87 @@ export default function CalendarioPage() {
               </div>
             </section>
 
-            <aside className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-800">Detalhes do dia</h2>
+            {/* ── Detail panel ──────────────────────────────────────────── */}
+            {/* minHeight ensures the panel never collapses and causes layout shifts */}
+            <aside style={{
+              background: C.white,
+              borderRadius: 20,
+              border: `1px solid ${C.border}`,
+              boxShadow: "0 2px 20px rgba(28,24,40,0.05)",
+              padding: 20,
+              minHeight: 520, // ← KEY FIX: fixed minimum height prevents layout jump
+              display: "flex",
+              flexDirection: "column",
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: C.ink }}>Detalhes do dia</h2>
                 {dataSelecionada && (
-                  <span className="text-xs text-slate-500">{formatDateLabel(dataSelecionada)}</span>
+                  <span style={{ fontSize: 11, color: C.muted, textAlign: "right", lineHeight: 1.4 }}>
+                    {formatDateLabel(dataSelecionada)}
+                  </span>
                 )}
               </div>
 
               {eventosSelecionados.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                  Sem coachings para esta data.
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ textAlign: "center", padding: "24px 16px", borderRadius: 12, border: `1.5px dashed ${C.border}`, width: "100%" }}>
+                    <p style={{ margin: 0, fontSize: 13, color: C.muted }}>Sem coachings para esta data.</p>
+                  </div>
                 </div>
               ) : (
-                <div className="mt-4 space-y-4">
-                  {eventosSelecionados.map((coaching) => (
-                    <div key={coaching.id_coaching} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-slate-800">{coaching.modalidade}</p>
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${estadoColor(coaching.status)}`}>
-                          {coaching.status}
-                        </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12, overflowY: "auto" }}>
+                  {eventosSelecionados.map((coaching) => {
+                    const badge = estadoBadge(coaching.status);
+                    return (
+                      <div key={coaching.id_coaching} style={{
+                        background: C.surface, borderRadius: 14,
+                        border: `1px solid ${C.border}`, padding: "14px 16px",
+                      }}>
+                        {/* Card header */}
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: C.ink }}>{coaching.modalidade}</p>
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            background: badge.bg, color: badge.color,
+                            padding: "3px 10px", borderRadius: 999,
+                            fontSize: 10, letterSpacing: "0.1em", fontWeight: 600, textTransform: "uppercase",
+                          }}>
+                            <span style={{ width: 4, height: 4, borderRadius: "50%", background: badge.color }} />
+                            {coaching.status}
+                          </span>
+                        </div>
+
+                        {/* Details */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {[
+                            { label: "Horário", value: formatTimeLabel(coaching.start_time) },
+                            { label: "Duração", value: `${coaching.duration_minutes} min` },
+                            { label: "Estúdio", value: coaching.estudio },
+                            { label: "Professor", value: coaching.professor },
+                            ...(coaching.aluno ? [{ label: "Aluno", value: coaching.aluno }] : []),
+                            { label: "Preço", value: `${coaching.price}€` },
+                          ].map(row => (
+                            <div key={row.label} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, fontWeight: 600, minWidth: 64 }}>{row.label}</span>
+                              <span style={{ fontSize: 12, color: C.inkMid }}>{row.value}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="mt-3 grid gap-2 text-sm text-slate-600">
-                        <p>
-                          <span className="font-medium text-slate-700">Horario:</span> {formatTimeLabel(coaching.start_time)}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-700">Duracao:</span> {coaching.duration_minutes} min
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-700">Estudio:</span> {coaching.estudio}
-                        </p>
-                        <p>
-                          <span className="font-medium text-slate-700">Professor:</span> {coaching.professor}
-                        </p>
-                        {coaching.aluno && (
-                          <p>
-                            <span className="font-medium text-slate-700">Aluno:</span> {coaching.aluno}
-                          </p>
-                        )}
-                        <p>
-                          <span className="font-medium text-slate-700">Preco:</span> {coaching.price}€
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </aside>
           </div>
         )}
       </div>
+
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=DM+Sans:wght@400;500;600;700&display=swap');
+        @keyframes spin { to { transform: rotate(360deg); } }
+        * { box-sizing: border-box; }
+      `}</style>
     </div>
   );
 }

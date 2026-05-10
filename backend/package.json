@@ -4,10 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-  "dev": "nodemon --env-file=.env server.js",
-  "test": "jest --detectOpenHandles",
-  "test:watch": "jest --watchAll --detectOpenHandles", 
-  "test:coverage": "jest --coverage --detectOpenHandles"
+    "dev": "nodemon --env-file=.env server.js",
+    "test": "jest --detectOpenHandles",
+    "test:watch": "jest --watchAll --detectOpenHandles",
+    "test:coverage": "jest --coverage --detectOpenHandles"
   },
   "keywords": [],
   "author": "",
