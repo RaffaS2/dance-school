@@ -1,7 +1,7 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 
-// mocks
+// mock do módulo de BD — tem de vir ANTES do require do controller
 jest.mock('../../db', () => ({
   query: jest.fn()
 }))
@@ -16,12 +16,11 @@ const pool = require('../../db')
 const { register, login, forgotPassword, resetPassword, logout } = require('../../controllers/authController')
 
 // Cria objetos falsos que imitam o req e res do Express
-// O controller só precisa de req.body, res.status, res.json, res.cookie e res.clearCookie
 function createReqRes(body = {}) {
   const req = { body }
 
   const res = {
-    status: jest.fn().mockReturnThis(), // mockReturnThis permite encadear: res.status(200).json({})
+    status: jest.fn().mockReturnThis(),
     json: jest.fn(),
     cookie: jest.fn().mockReturnThis(),
     clearCookie: jest.fn()
@@ -30,7 +29,7 @@ function createReqRes(body = {}) {
   return { req, res }
 }
 
-// Limpa os mocks antes de cada teste para não haver contaminação entre testes
+// Limpa os mocks antes de cada teste
 beforeEach(() => {
   process.env.JWT_SECRET = 'test-secret'
   jest.clearAllMocks()
@@ -39,7 +38,7 @@ beforeEach(() => {
 describe('register', () => {
 
   test('email already exists - 409', async () => {
-    // simula que a bd encontrou um utilizador com este email
+    // simula que a BD encontrou um utilizador com este email
     pool.query.mockResolvedValueOnce({ rows: [{ id_user: 1 }] })
 
     const { req, res } = createReqRes({
@@ -82,7 +81,6 @@ describe('register', () => {
 describe('login', () => {
 
   test('email does not exist - 401', async () => {
-    // simula que a bd não encontrou nenhum utilizador com este email
     pool.query.mockResolvedValueOnce({ rows: [] })
 
     const { req, res } = createReqRes({
@@ -97,10 +95,8 @@ describe('login', () => {
   })
 
   test('wrong password - 401', async () => {
-    // cria um hash real para simular o que estaria guardado na bd
     const hashedPassword = await bcrypt.hash('correctpassword', 10)
 
-    // simula que a bd encontrou o utilizador com a password encriptada
     pool.query.mockResolvedValueOnce({
       rows: [{ id_user: 1, email: 'test@test.com', password: hashedPassword, id_user_type: 1 }]
     })
@@ -117,10 +113,8 @@ describe('login', () => {
   })
 
   test('valid credentials - returns 200 + sets cookie', async () => {
-    // cria um hash real para simular o que estaria guardado na bd
     const hashedPassword = await bcrypt.hash('password123', 10)
 
-    // simula que a bd encontrou o utilizador com todos os dados necessários
     pool.query.mockResolvedValueOnce({
       rows: [{ id_user: 1, name: 'test', email: 'test@test.com', password: hashedPassword, id_user_type: 1 }]
     })
@@ -144,7 +138,6 @@ describe('login', () => {
 describe('forgotPassword', () => {
 
   test('email does not exist - returns 200 without revealing it', async () => {
-    // boa prática de segurança: nunca revelar se o email existe ou não
     pool.query.mockResolvedValueOnce({ rows: [] })
 
     const { req, res } = createReqRes({ email: 'noone@test.com' })
@@ -158,7 +151,6 @@ describe('forgotPassword', () => {
   })
 
   test('email exists - sends email and returns 200', async () => {
-    // simula que a bd encontrou o utilizador
     pool.query.mockResolvedValueOnce({ rows: [{ id_user: 1, name: 'test' }] })
 
     const { req, res } = createReqRes({ email: 'test@test.com' })
@@ -188,10 +180,8 @@ describe('resetPassword', () => {
   })
 
   test('valid token - updates password and returns 200', async () => {
-    // cria um token real para simular o link de reset
     const token = jwt.sign({ id: 1 }, 'test-secret', { expiresIn: '15m' })
 
-    // simula o update na bd
     pool.query.mockResolvedValueOnce({ rows: [] })
 
     const { req, res } = createReqRes({

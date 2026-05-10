@@ -2,21 +2,28 @@ const request = require('supertest')
 const app = require('../../server')
 const pool = require('../../db')
 
-// Antes de todos os testes, limpa os dados de teste que possam existir
+let userTypeId
+
 beforeAll(async () => {
+  // buscar um id_user_type válido existente na BD
+  const { rows } = await pool.query('SELECT id_user_type FROM user_types LIMIT 1')
+  if (rows.length === 0) throw new Error('Sem user_types na BD.')
+  userTypeId = rows[0].id_user_type
+
   await pool.query("DELETE FROM users WHERE email = 'test@test.com'")
 })
 
-describe('POST /api/auth/register', () => {
+describe('POST /auth/register', () => {
 
   test('regist a new user - 201', async () => {
     const res = await request(app)
-      .post('/api/auth/register')
+      .post('/auth/register')
       .send({
         name: 'user test',
         email: 'test@test.com',
         password: '123456',
-        phone_number: '910000000'
+        phone_number: '910000000',
+        id_user_type: userTypeId
       })
 
     expect(res.status).toBe(201)
@@ -24,14 +31,14 @@ describe('POST /api/auth/register', () => {
   })
 
   test('email already registed - 409', async () => {
-    // O utilizador já foi criado no teste anterior
     const res = await request(app)
-      .post('/api/auth/register')
+      .post('/auth/register')
       .send({
         name: 'user test',
         email: 'test@test.com',
         password: '123456',
-        phone_number: '910000000'
+        phone_number: '910000000',
+        id_user_type: userTypeId
       })
 
     expect(res.status).toBe(409)
@@ -40,11 +47,11 @@ describe('POST /api/auth/register', () => {
 
 })
 
-describe('POST /api/auth/login', () => {
+describe('POST /auth/login', () => {
 
-  test('invalid credentials - 200 + cookie', async () => {
+  test('valid credentials - 200 + cookie', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/auth/login')
       .send({ email: 'test@test.com', password: '123456' })
 
     expect(res.status).toBe(200)
@@ -54,7 +61,7 @@ describe('POST /api/auth/login', () => {
 
   test('wrong password → 401', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/auth/login')
       .send({ email: 'test@test.com', password: 'wrongpassword' })
 
     expect(res.status).toBe(401)
@@ -62,7 +69,7 @@ describe('POST /api/auth/login', () => {
 
   test('email does not exist - 401', async () => {
     const res = await request(app)
-      .post('/api/auth/login')
+      .post('/auth/login')
       .send({ email: 'inexistent@test.com', password: '123456' })
 
     expect(res.status).toBe(401)
@@ -70,10 +77,10 @@ describe('POST /api/auth/login', () => {
 
 })
 
-describe('POST /api/auth/logout', () => {
+describe('POST /auth/logout', () => {
 
   test('end session - 200 + cleans cookie', async () => {
-    const res = await request(app).post('/api/auth/logout')
+    const res = await request(app).post('/auth/logout')
 
     expect(res.status).toBe(200)
     expect(res.headers['set-cookie'][0]).toMatch(/token=;/)
@@ -81,7 +88,6 @@ describe('POST /api/auth/logout', () => {
 
 })
 
-// Depois de todos os testes, limpa e fecha a ligação
 afterAll(async () => {
   await pool.query("DELETE FROM users WHERE email = 'test@test.com'")
   await pool.end()
