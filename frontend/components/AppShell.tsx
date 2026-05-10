@@ -24,29 +24,6 @@ function shouldHideNavbar(pathname: string) {
 }
 
 function getNavbarActions(pathname: string): ReactNode | undefined {
-  if (pathname === "/inventario/novo") {
-    return (
-      <Link href="/inventario" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Voltar
-      </Link>
-    );
-  }
-
-  if (pathname === "/coaching") {
-    return (
-      <Link href="/coaching/novo" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        + Requisitar Coaching
-      </Link>
-    );
-  }
-
-  if (pathname === "/coaching/novo") {
-    return (
-      <Link href="/coaching" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Voltar
-      </Link>
-    );
-  }
 
   if (pathname === "/availabilities") {
     return (
@@ -56,37 +33,6 @@ function getNavbarActions(pathname: string): ReactNode | undefined {
     );
   }
 
-  if (pathname === "/availabilities/novo") {
-    return (
-      <Link href="/availabilities" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Voltar
-      </Link>
-    );
-  }
-
-  if (pathname === "/perfil/editar") {
-    return (
-      <Link href="/perfil" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Voltar ao perfil
-      </Link>
-    );
-  }
-
-  if (pathname === "/perfil/alterar-password") {
-    return (
-      <Link href="/perfil" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Voltar ao perfil
-      </Link>
-    );
-  }
-
-  if (pathname === "/professor/validar") {
-    return (
-      <Link href="/coaching" className="rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-        Ver Coachings
-      </Link>
-    );
-  }
 
   return undefined;
 }
