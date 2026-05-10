@@ -13,10 +13,9 @@ Sistema web de gestão para escolas de dança, desenvolvido como projeto académ
 5. [Funcionalidades por Perfil](#5-funcionalidades-por-perfil)
 6. [Autenticação e Autorização](#6-autenticação-e-autorização)
 7. [API Reference](#7-api-reference)
-8. [Estrutura de Pastas](#8-estrutura-de-pastas)
-9. [Instalação e Configuração](#9-instalação-e-configuração)
-10. [Testes](#10-testes)
-11. [Regras de Negócio](#11-regras-de-negócio)
+8. [Instalação e Configuração](#9-instalação-e-configuração)
+9. [Testes](#10-testes)
+10. [Regras de Negócio](#10-regras-de-negócio)
 
 ---
 
@@ -470,7 +469,7 @@ npx jest coachings    # corre qualquer ficheiro com "coachings" no nome
 
 ---
 
-## 11. Regras de Negócio
+## 10. Regras de Negócio
 
 ### Conflitos de Horário (Coachings)
 
