@@ -172,7 +172,7 @@ student_coachings    (id_student, id_coaching)
 
 ## 5. Funcionalidades por Perfil
 
-### 🔴 Admin (Coordenação) — Acesso Total
+### Admin (Coordenação) — Acesso Total
 
 - Gerir todos os utilizadores (criar, editar, apagar)
 - Aprovar registos de professores via email
@@ -184,7 +184,7 @@ student_coachings    (id_student, id_coaching)
 - Gerir inventário completo (itens e categorias)
 - Gerir pedidos de material
 
-### 🟡 Professor — Acesso Intermédio
+### Professor — Acesso Intermédio
 
 - Consultar o seu perfil e editar password
 - Gerir as suas disponibilidades (criar/apagar)
@@ -193,7 +193,7 @@ student_coachings    (id_student, id_coaching)
 - Consultar estúdios e modalidades
 - Gerir inventário e fazer pedidos de material
 
-### 🟢 Encarregado de Educação — Acesso Limitado
+### Encarregado de Educação — Acesso Limitado
 
 - Registo imediato (sem aprovação)
 - Consultar o seu perfil e editar password
@@ -377,76 +377,7 @@ Base URL: `http://localhost:3001/api`
 | `/studioModalities` | Modalidades de estúdios |
 | `/studentCoachings` | Inscrições de alunos em aulas |
 
----
-
-## 8. Estrutura de Pastas
-
-```
-dance-school/
-├── frontend/
-│   ├── app/
-│   │   ├── admin/
-│   │   │   └── studios/        # Gestão de estúdios (Admin)
-│   │   ├── availabilities/     # Disponibilidades
-│   │   │   └── novo/
-│   │   ├── coaching/           # Aulas
-│   │   │   └── novo/
-│   │   ├── dashboard/          # Página principal após login
-│   │   ├── inventario/         # Inventário
-│   │   │   └── novo/
-│   │   ├── perfil/             # Perfil do utilizador
-│   │   │   ├── editar/
-│   │   │   └── alterar-password/
-│   │   ├── professor/
-│   │   │   └── validar/        # Aprovação de professores
-│   │   ├── login/
-│   │   ├── signup/
-│   │   ├── forgotpassword/
-│   │   ├── resetpassword/
-│   │   ├── pendingapproval/    # Página de espera (registo professor)
-│   │   └── approvedteacher/    # Confirmação de aprovação
-│   ├── components/             # Componentes reutilizáveis
-│   ├── middleware.ts            # Proteção de rotas Next.js
-│   └── package.json
-│
-├── backend/
-│   ├── controllers/            # Lógica de negócio por entidade
-│   │   ├── authController.js
-│   │   ├── usersController.js
-│   │   ├── professorsController.js
-│   │   ├── studentsController.js
-│   │   ├── studiosController.js
-│   │   ├── modalitiesController.js
-│   │   ├── coachingsController.js
-│   │   ├── availabilitiesController.js
-│   │   ├── itemsController.js
-│   │   ├── categoriesController.js
-│   │   ├── itemRequestsController.js
-│   │   ├── professorModalitiesController.js
-│   │   ├── studioModalitiesController.js
-│   │   └── studentCoachingsController.js
-│   ├── routes/
-│   │   ├── index.js            # Router principal
-│   │   ├── auth.js
-│   │   ├── authorize.js        # Middleware de roles
-│   │   └── [entidade].js       # Uma rota por entidade
-│   ├── middleware/
-│   │   └── authMiddleware.js   # Verificação JWT
-│   ├── migrations/             # Scripts SQL de migração
-│   ├── __tests__/
-│   │   ├── integration/        # Testes HTTP (rota → controller → DB)
-│   │   └── unit/               # Testes unitários (funções isoladas)
-│   ├── db.js                   # Pool de ligação PostgreSQL
-│   ├── server.js               # Entry point Express
-│   └── package.json
-│
-├── package.json                # Scripts raiz (dev, test)
-└── README.md
-```
-
----
-
-## 9. Instalação e Configuração
+## 8. Instalação e Configuração
 
 ### Pré-requisitos
 
