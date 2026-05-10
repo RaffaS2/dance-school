@@ -1,9 +1,7 @@
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
-const { Pool } = require('pg')
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const pool = require('../db') // ← usa o pool partilhado (permite mock nos testes unitários)
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -15,13 +13,21 @@ const transporter = nodemailer.createTransport({
 
 // Registo
 exports.register = async (req, res) => {
-  const { name, email, phone, password, id_user_type } = req.body
+  const { name, email, phone_number, password, id_user_type } = req.body
 
-  if (!name || !email || !password || !id_user_type) {
+  if (!name || !email || !password) {
     return res.status(400).json({ error: 'Preenche todos os campos obrigatórios.' })
   }
 
   try {
+    // Verificar se email já existe
+    const existingUser = await pool.query(
+      'SELECT id_user FROM users WHERE email = $1', [email]
+    )
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ error: 'this email is already registered.' })
+    }
+
     const password_hash = await bcrypt.hash(password, 10)
 
     // Professor - registo pendente
@@ -29,16 +35,13 @@ exports.register = async (req, res) => {
       const existing = await pool.query(
         'SELECT id FROM pending_teachers WHERE email = $1', [email]
       )
-      const existingUser = await pool.query(
-        'SELECT id_user FROM users WHERE email = $1', [email]
-      )
 
-      if (existing.rows.length > 0 || existingUser.rows.length > 0) {
-        return res.status(409).json({ error: 'Este email já está registado ou tem um pedido pendente.' })
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ error: 'this email is already registered.' })
       }
 
       const approval_token = jwt.sign(
-        { email, name, phone, password_hash },
+        { email, name, phone_number, password_hash },
         process.env.JWT_SECRET,
         { expiresIn: '48h' }
       )
@@ -46,7 +49,7 @@ exports.register = async (req, res) => {
       await pool.query(
         `INSERT INTO pending_teachers (name, email, phone, password, approval_token)
          VALUES ($1, $2, $3, $4, $5)`,
-        [name, email, phone, password_hash, approval_token]
+        [name, email, phone_number, password_hash, approval_token]
       )
 
       const approveUrl = `${process.env.FRONTEND_URL}/approvedteacher?token=${approval_token}`
@@ -59,18 +62,10 @@ exports.register = async (req, res) => {
           <h2>Pedido de registo como Professor</h2>
           <p><strong>Nome:</strong> ${name}</p>
           <p><strong>Email:</strong> ${email}</p>
-          <p><strong>Telefone:</strong> ${phone || 'Não fornecido'}</p>
+          <p><strong>Telefone:</strong> ${phone_number || 'Não fornecido'}</p>
           <br/>
           <p>Para aprovar esta conta, clica no botão abaixo:</p>
-          <a href="${approveUrl}" style="
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #4F46E5;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-          ">Aprovar Professor</a>
+          <a href="${approveUrl}">Aprovar Professor</a>
           <br/><br/>
           <p style="color: #888; font-size: 12px;">Este link expira em 48 horas.</p>
         `,
@@ -82,26 +77,14 @@ exports.register = async (req, res) => {
       })
     }
 
-    // Encarregado - registo imediato 
-    const existingUser = await pool.query(
-      'SELECT id_user FROM users WHERE email = $1', [email]
-    )
-    if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: 'Este email já está registado.' })
-    }
-
+    // Encarregado/outro - registo imediato
     const result = await pool.query(
       `INSERT INTO users (name, email, phone_number, password, id_user_type)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id_user`,
-      [name, email, phone, password_hash, id_user_type]
+       VALUES ($1, $2, $3, $4, $5) RETURNING id_user, name, email`,
+      [name, email, phone_number, password_hash, id_user_type || null]
     )
 
-    await pool.query(
-      `INSERT INTO students (name, id_user) VALUES ($1, $2)`,
-      [name, result.rows[0].id_user]
-    )
-
-    return res.status(201).json({ message: 'Conta criada com sucesso!', userId: result.rows[0].id_user })
+    return res.status(201).json({ user: result.rows[0] })
 
   } catch (err) {
     console.error('Erro no register:', err)
@@ -109,7 +92,7 @@ exports.register = async (req, res) => {
   }
 }
 
-// Login 
+// Login
 exports.login = async (req, res) => {
   const { email, password } = req.body
 
@@ -121,14 +104,14 @@ exports.login = async (req, res) => {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email])
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Credenciais inválidas.' })
+      return res.status(401).json({ error: 'invalid email or password.' })
     }
 
     const user = result.rows[0]
     const valid = await bcrypt.compare(password, user.password)
 
     if (!valid) {
-      return res.status(401).json({ error: 'Credenciais inválidas.' })
+      return res.status(401).json({ error: 'invalid email or password.' })
     }
 
     const token = jwt.sign(
@@ -144,7 +127,9 @@ exports.login = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     })
 
-    return res.status(200).json({ message: 'Login com sucesso!', id_user_type: user.id_user_type })
+    return res.status(200).json({
+      user: { id: user.id_user, name: user.name, email: user.email }
+    })
 
   } catch (err) {
     console.error('Erro no login:', err)
@@ -164,7 +149,7 @@ exports.forgotPassword = async (req, res) => {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email])
 
     if (result.rows.length === 0) {
-      return res.status(200).json({ message: 'Se o email existir, receberás um link de reset.' })
+      return res.status(200).json({ message: 'if this email exists, you will receive a link shortly.' })
     }
 
     const user = result.rows[0]
@@ -178,19 +163,11 @@ exports.forgotPassword = async (req, res) => {
       html: `
         <h2>Reset de Password</h2>
         <p>Clica no link abaixo para redefinir a tua password. O link expira em 15 minutos.</p>
-        <a href="${resetUrl}" style="
-          display: inline-block;
-          padding: 12px 24px;
-          background-color: #4F46E5;
-          color: white;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: bold;
-        ">Redefinir Password</a>
+        <a href="${resetUrl}">Redefinir Password</a>
       `,
     })
 
-    return res.status(200).json({ message: 'Se o email existir, receberás um link de reset.' })
+    return res.status(200).json({ message: 'if this email exists, you will receive a link shortly.' })
 
   } catch (err) {
     console.error('Erro no forgotPassword:', err)
@@ -211,13 +188,13 @@ exports.resetPassword = async (req, res) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET)
     } catch {
-      return res.status(400).json({ error: 'Link inválido ou expirado.' })
+      return res.status(400).json({ error: 'invalid or expired link.' })
     }
 
     const password_hash = await bcrypt.hash(password, 10)
     await pool.query('UPDATE users SET password = $1 WHERE id_user = $2', [password_hash, decoded.id])
 
-    return res.status(200).json({ message: 'Password atualizada com sucesso!' })
+    return res.status(200).json({ message: 'password updated successfully.' })
 
   } catch (err) {
     console.error('Erro no resetPassword:', err)
@@ -225,7 +202,7 @@ exports.resetPassword = async (req, res) => {
   }
 }
 
-// mudar password (sessão autenticada)
+// Mudar password (sessão autenticada)
 exports.changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body
   const userId = req.user?.id
@@ -288,7 +265,7 @@ exports.approveTeacher = async (req, res) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET)
     } catch {
-      return res.status(400).json({ error: 'Link inválido ou expirado.' })
+      return res.status(400).json({ error: 'invalid or expired link.' })
     }
 
     const pending = await pool.query(
@@ -309,42 +286,24 @@ exports.approveTeacher = async (req, res) => {
       return res.status(409).json({ error: 'Este utilizador já tem uma conta ativa.' })
     }
 
-    // Criar conta na tabela users como Professor (id_user_type = 2)
     const newUser = await pool.query(
       `INSERT INTO users (name, email, phone_number, password, id_user_type)
        VALUES ($1, $2, $3, $4, 2) RETURNING id_user`,
       [name, email, phone, password]
     )
 
-    // Inserir na tabela professors
     await pool.query(
-      `INSERT INTO professors (id_user, active)
-       VALUES ($1, true)`,
+      `INSERT INTO professors (id_user, active) VALUES ($1, true)`,
       [newUser.rows[0].id_user]
     )
 
-    // Remover da tabela de pendentes
     await pool.query('DELETE FROM pending_teachers WHERE approval_token = $1', [token])
 
-    // Email de confirmação ao professor
     await transporter.sendMail({
       from: `"EntArtes" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Conta aprovada — EntArtes',
-      html: `
-        <h2>Olá, ${name}!</h2>
-        <p>A tua conta de <strong>Professor</strong> na EntArtes foi aprovada pela coordenação.</p>
-        <p>Já podes fazer login:</p>
-        <a href="${process.env.FRONTEND_URL}/login" style="
-          display: inline-block;
-          padding: 12px 24px;
-          background-color: #4F46E5;
-          color: white;
-          text-decoration: none;
-          border-radius: 8px;
-          font-weight: bold;
-        ">Fazer Login</a>
-      `,
+      html: `<h2>Olá, ${name}!</h2><p>A tua conta foi aprovada.</p>`,
     })
 
     return res.status(200).json({ message: 'Professor aprovado com sucesso!' })
@@ -385,5 +344,3 @@ exports.me = async (req, res) => {
     res.status(500).json({ error: error.message })
   }
 }
-
-
