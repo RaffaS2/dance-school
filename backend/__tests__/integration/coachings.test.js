@@ -1,24 +1,23 @@
-// __tests__/integration/coachings.test.js
-
 const request = require('supertest')
 const app = require('../../server')
 const pool = require('../../db')
+const bcrypt = require('bcrypt')
 
 let cookie
 let ids = {}
 let coachingId
 
 beforeAll(async () => {
-  // criar user_type
-  const { rows: [userType] } = await pool.query(
-    `INSERT INTO user_types (type_name) VALUES ('test') RETURNING *`
-  )
+  // buscar um id_user_type válido existente na BD
+  const { rows: utRows } = await pool.query('SELECT id_user_type FROM user_types LIMIT 1')
+  if (utRows.length === 0) throw new Error('Sem user_types na BD.')
+  const userTypeId = utRows[0].id_user_type
 
-  // criar user professor
+  // criar user professor diretamente na BD
   const { rows: [profUser] } = await pool.query(
     `INSERT INTO users (name, email, id_user_type)
      VALUES ('prof', 'prof@test.com', $1) RETURNING *`,
-    [userType.id_user_type]
+    [userTypeId]
   )
 
   // criar professor
@@ -37,37 +36,42 @@ beforeAll(async () => {
     `INSERT INTO studios (name) VALUES ('studio') RETURNING *`
   )
 
-  // guardar ids
   ids = {
     professor: prof.id_professor,
     modality: mod.id_modality,
     studio: studio.id_studio
   }
 
-  // auth simples
-  await request(app).post('/api/auth/register').send({
-    name: 'auth',
+  // criar utilizador de auth diretamente na BD (evita depender do controller de register)
+  await pool.query("DELETE FROM users WHERE email = 'auth@test.com'")
+  const password_hash = await bcrypt.hash('123456', 10)
+  await pool.query(
+    `INSERT INTO users (name, email, password, id_user_type)
+     VALUES ('auth', 'auth@test.com', $1, $2)`,
+    [password_hash, userTypeId]
+  )
+
+  // fazer login para obter o cookie
+  const loginRes = await request(app).post('/auth/login').send({
     email: 'auth@test.com',
     password: '123456'
   })
 
-  const res = await request(app).post('/api/auth/login').send({
-    email: 'auth@test.com',
-    password: '123456'
-  })
+  if (loginRes.status !== 200) {
+    throw new Error(`Login falhou no beforeAll: ${loginRes.status} ${JSON.stringify(loginRes.body)}`)
+  }
 
-  cookie = res.headers['set-cookie']
+  cookie = loginRes.headers['set-cookie']
 })
 
 afterAll(async () => {
-    await pool.query(`DELETE FROM coachings WHERE status = 'test'`)
-    await pool.query(`DELETE FROM professors WHERE id_user IN (
-      SELECT id_user FROM users WHERE email IN ('prof@test.com','auth@test.com')
-    )`)
-    await pool.query(`DELETE FROM users WHERE email IN ('prof@test.com','auth@test.com')`)
-    await pool.query(`DELETE FROM user_types WHERE type_name = 'test'`)
-    await pool.end()
-  })
+  await pool.query(`DELETE FROM coachings WHERE status = 'test'`)
+  await pool.query(`DELETE FROM professors WHERE id_user IN (
+    SELECT id_user FROM users WHERE email IN ('prof@test.com','auth@test.com')
+  )`)
+  await pool.query(`DELETE FROM users WHERE email IN ('prof@test.com','auth@test.com')`)
+  await pool.end()
+})
 
 describe('Coachings CRUD', () => {
 

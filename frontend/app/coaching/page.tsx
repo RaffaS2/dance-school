@@ -548,20 +548,6 @@ export default function CoachingPage() {
 						)}
 						{!loadingAvail && utilizadorAtual && (
 							<>
-								{/* Resumo */}
-								<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-									<div>
-										<p style={{ margin: "0 0 4px", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Resumo</p>
-										<p style={{ margin: 0, fontSize: 13, color: C.inkMid }}>
-											<strong style={{ color: C.ink, fontSize: 15 }}>{availabilidadesFiltradas.length}</strong> disponibilidade{availabilidadesFiltradas.length !== 1 ? "s" : ""} registada{availabilidadesFiltradas.length !== 1 ? "s" : ""}
-										</p>
-									</div>
-									<span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(59,43,92,0.10)", color: "#3B2B5C", padding: "5px 14px", borderRadius: 999, fontSize: 11, letterSpacing: "0.1em", fontWeight: 700, textTransform: "uppercase" }}>
-										<span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3B2B5C" }} />
-										Ativo
-									</span>
-								</div>
-
 								<div style={{ marginBottom: 16 }}>
 									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>
 										<strong style={{ color: C.ink }}>{availabilidadesFiltradas.length}</strong> {availabilidadesFiltradas.length === 1 ? "slot encontrado" : "slots encontrados"}

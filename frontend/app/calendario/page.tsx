@@ -27,6 +27,7 @@ type ApiCoaching = {
   price: number;
 };
 
+
 type ApiProfessor = {
   id_professor: number;
   id_user: number;
@@ -88,6 +89,7 @@ function estadoBadge(status: string) {
   if (s === "pendente")   return { bg: C.amberLight, color: C.amber };
   if (s === "cancelado")  return { bg: C.roseLight,  color: C.rose  };
   return { bg: "rgba(139,135,160,0.10)", color: C.muted };
+
 }
 
 export default function CalendarioPage() {
@@ -108,6 +110,7 @@ export default function CalendarioPage() {
       if (!res.ok) { setUtilizadorAtual(null); return; }
       const data = await res.json() as { user: SessionUser };
       setUtilizadorAtual(data.user);
+
     } catch { setUtilizadorAtual(null); }
     finally { setLoadingSessao(false); }
   }, [apiBase]);
@@ -122,6 +125,7 @@ export default function CalendarioPage() {
         const profs = await profRes.json() as ApiProfessor[];
         const prof = profs.find((p) => p.id_user === user.id_user);
         if (!prof) { setCoachings([]); return; }
+
         url = `${apiBase}/coachings/professor/${prof.id_professor}`;
       } else if (user.id_user_type === 3) {
         url = `${apiBase}/coachings/guardian/${user.id_user}`;
