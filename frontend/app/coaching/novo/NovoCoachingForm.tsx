@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getApiBase } from "../../lib/apiBase";
 
-export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: any) {
-  const apiBase = getApiBase();
-  const utilizador = sessao?.user;
-  const tipoUtilizador = utilizador?.id_user_type; // 1=admin, 2=professor, 3=aluno/encarregado
+const API = "http://localhost:3001";
+
+export default function NovoCoachingForm() {
+  const [sessao, setSessao] = useState<any>(null);
+  const [prof, setProf] = useState<any[]>([]);
+  const [alunos, setAlunos] = useState<any[]>([]);
+  const [mods, setMods] = useState<any[]>([]);
+  const [est, setEst] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [selectedProfessor, setSelectedProfessor] = useState("");
   const [selectedAlunos, setSelectedAlunos] = useState<string[]>([""]);
@@ -18,44 +22,70 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
   const [sucesso, setSucesso] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Pré-selecionar professor se o utilizador for professor
+  // Carregar sessão e dados iniciais
   useEffect(() => {
-    if (tipoUtilizador === 2 && utilizador) {
-      const profArray = Array.isArray(prof) ? prof : [];
-      const profEncontrado = profArray.find((p: any) => p.id_user === utilizador.id_user);
-      if (profEncontrado) {
-        const id = String(profEncontrado.id_professor);
-        setSelectedProfessor(id);
-        void fetchHorarios(id);
-      }
-    }
-  }, [tipoUtilizador, utilizador, prof]);
+    const init = async () => {
+      try {
+        // 1. Sessão
+        const sessaoRes = await fetch(`${API}/auth/me`, { credentials: "include" });
+        if (!sessaoRes.ok) { setLoading(false); return; }
+        const sessaoData = await sessaoRes.json();
+        const user = sessaoData.user;
+        setSessao(user);
 
-  // Pré-selecionar primeiro aluno se o utilizador for aluno/encarregado
-  // /students/me devolve um único objeto, por isso o array tem só 1 elemento
-  useEffect(() => {
-    if (tipoUtilizador === 3) {
-      const alunosArray = Array.isArray(alunos) ? alunos : [];
-      // Tentar pelo id_user; se não encontrar (estrutura diferente), usar o 1º elemento
-      const alunoEncontrado =
-        alunosArray.find((a: any) => a.id_user === utilizador?.id_user) ?? alunosArray[0];
-      if (alunoEncontrado?.id_student) {
-        setSelectedAlunos([String(alunoEncontrado.id_student)]);
+        const tipo = user.id_user_type;
+
+        // 2. Dados em paralelo
+        const [profRes, modsRes, estRes] = await Promise.all([
+          fetch(`${API}/professors`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+          fetch(`${API}/modalities`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+          fetch(`${API}/studios`, { credentials: "include" }).then(r => r.ok ? r.json() : []),
+        ]);
+
+        setProf(Array.isArray(profRes) ? profRes : []);
+        setMods(Array.isArray(modsRes) ? modsRes : []);
+        setEst(Array.isArray(estRes) ? estRes : []);
+
+        // 3. Alunos — depende do tipo
+        if (tipo === 3) {
+          const meRes = await fetch(`${API}/students/me`, { credentials: "include" });
+          if (meRes.ok) {
+            const me = await meRes.json();
+            setAlunos([me]);
+            if (me?.id_student) setSelectedAlunos([String(me.id_student)]);
+          }
+        } else {
+          const alunosRes = await fetch(`${API}/students`, { credentials: "include" });
+          setAlunos(alunosRes.ok ? await alunosRes.json() : []);
+        }
+
+        // 4. Pré-selecionar professor se for tipo 2
+        if (tipo === 2) {
+          const profEncontrado = (Array.isArray(profRes) ? profRes : []).find((p: any) => p.id_user === user.id_user);
+          if (profEncontrado) {
+            const id = String(profEncontrado.id_professor);
+            setSelectedProfessor(id);
+            await fetchHorarios(id);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-    }
-  }, [tipoUtilizador, utilizador, alunos]);
+    };
+    void init();
+  }, []);
 
   const fetchHorarios = async (id: string) => {
     setHorarios([]);
     setHorarioSelecionado("");
     if (!id) return;
     try {
-      const res = await fetch(`${apiBase}/availabilities/professor/${id}`, { credentials: "include" });
+      const res = await fetch(`${API}/availabilities/professor/${id}`, { credentials: "include" });
       const data = await res.json();
       setHorarios(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (e) { console.error(e); }
   };
 
   const handleProfessorChange = async (id: string) => {
@@ -70,9 +100,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
   };
 
   const adicionarAluno = () => {
-    if (selectedAlunos.length < 4) {
-      setSelectedAlunos([...selectedAlunos, ""]);
-    }
+    if (selectedAlunos.length < 4) setSelectedAlunos([...selectedAlunos, ""]);
   };
 
   const removerAluno = (index: number) => {
@@ -103,7 +131,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
     setSubmitting(true);
 
     try {
-      const res = await fetch(`${apiBase}/coachings`, {
+      const res = await fetch(`${API}/coachings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -128,13 +156,12 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
       const coaching = await res.json();
 
       for (const id_student of alunosValidos) {
-        const scRes = await fetch(`${apiBase}/studentCoachings`, {
+        const scRes = await fetch(`${API}/studentCoachings`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({ id_student, id_coaching: coaching.id_coaching }),
         });
-
         if (!scRes.ok) {
           setErro("Coaching criado mas falhou ao associar um dos alunos.");
           return;
@@ -145,24 +172,36 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
       setHorarioSelecionado("");
       setSelectedModalidade("");
       setSelectedEstudio("");
-      // Tipo 3: manter o primeiro aluno pré-selecionado, limpar os extras
-      if (tipoUtilizador === 3) {
+      if (sessao?.id_user_type === 3) {
         setSelectedAlunos([alunosValidos[0]]);
       } else {
         setSelectedAlunos([""]);
       }
       void fetchHorarios(selectedProfessor);
-    } catch (error) {
+    } catch {
       setErro("Erro de ligação ao servidor.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const profArray = Array.isArray(prof) ? prof : [];
-  const alunosArray = Array.isArray(alunos) ? alunos : [];
-  const modsArray = Array.isArray(mods) ? mods : [];
-  const estArray = Array.isArray(est) ? est : [];
+  if (loading) {
+    return (
+      <div className="p-6 max-w-lg mx-auto bg-white rounded shadow text-sm text-gray-400">
+        A carregar...
+      </div>
+    );
+  }
+
+  if (!sessao) {
+    return (
+      <div className="p-6 max-w-lg mx-auto bg-white rounded shadow text-sm text-rose-600">
+        Sessão não encontrada. Faz login para continuar.
+      </div>
+    );
+  }
+
+  const tipoUtilizador = sessao.id_user_type;
 
   return (
     <div className="p-6 max-w-lg mx-auto bg-white rounded shadow">
@@ -188,7 +227,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
         onChange={(e) => handleProfessorChange(e.target.value)}
       >
         <option value="">Selecionar Professor</option>
-        {profArray.map((p: any) => (
+        {prof.map((p: any) => (
           <option key={p.id_professor} value={p.id_professor}>{p.name}</option>
         ))}
       </select>
@@ -196,9 +235,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
       {/* Alunos — até 4 */}
       <div className="mb-3">
         {selectedAlunos.map((alunoId, index) => {
-          // Para tipo 3, o primeiro aluno está bloqueado (pré-selecionado)
           const isLocked = tipoUtilizador === 3 && index === 0;
-
           return (
             <div key={index} className="flex gap-2 mb-2 items-center">
               <select
@@ -208,7 +245,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
                 onChange={(e) => handleAlunoChange(index, e.target.value)}
               >
                 <option value="">Selecionar Aluno</option>
-                {alunosArray
+                {alunos
                   .filter((a: any) =>
                     String(a.id_student) === alunoId ||
                     !alunosSelecionados.includes(String(a.id_student))
@@ -218,54 +255,36 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
                   ))}
               </select>
 
-              {/* Botão remover — não no primeiro aluno bloqueado, nem se só houver 1 linha */}
               {selectedAlunos.length > 1 && !isLocked && (
                 <button
                   onClick={() => removerAluno(index)}
                   className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-300 text-gray-400 hover:bg-gray-100 hover:text-gray-600 text-lg leading-none"
-                  title="Remover aluno"
-                >
-                  −
-                </button>
+                >−</button>
               )}
             </div>
           );
         })}
 
-        {/* Botão adicionar aluno — disponível para todos enquanto < 4 */}
-        {tipoUtilizador !== 3 && selectedAlunos.length < 4 && (
-  <button
-    onClick={adicionarAluno}
-    className="mt-1 flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
-  >
-    <span className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 text-gray-400 hover:border-gray-500 text-base leading-none">
-      +
-    </span>
-    Adicionar aluno
-  </button>
-)}
+        {selectedAlunos.length < 4 && (
+          <button onClick={adicionarAluno} className="mt-1 flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600">
+            <span className="w-6 h-6 flex items-center justify-center rounded-full border border-gray-300 text-base leading-none">+</span>
+            Adicionar aluno
+          </button>
+        )}
       </div>
 
       {/* Modalidade */}
-      <select
-        className="w-full mb-3 p-2 border rounded"
-        value={selectedModalidade}
-        onChange={(e) => setSelectedModalidade(e.target.value)}
-      >
+      <select className="w-full mb-3 p-2 border rounded" value={selectedModalidade} onChange={(e) => setSelectedModalidade(e.target.value)}>
         <option value="">Selecionar Modalidade</option>
-        {modsArray.map((m: any) => (
+        {mods.map((m: any) => (
           <option key={m.id_modality} value={m.id_modality}>{m.name}</option>
         ))}
       </select>
 
       {/* Estúdio */}
-      <select
-        className="w-full mb-3 p-2 border rounded"
-        value={selectedEstudio}
-        onChange={(e) => setSelectedEstudio(e.target.value)}
-      >
+      <select className="w-full mb-3 p-2 border rounded" value={selectedEstudio} onChange={(e) => setSelectedEstudio(e.target.value)}>
         <option value="">Selecionar Estúdio</option>
-        {estArray.map((e: any) => (
+        {est.map((e: any) => (
           <option key={e.id_studio} value={e.id_studio}>{e.name}</option>
         ))}
       </select>
@@ -286,9 +305,7 @@ export default function NovoCoachingForm({ prof, alunos, mods, est, sessao }: an
                   <button
                     key={h.id_availability}
                     onClick={() => setHorarioSelecionado(valor)}
-                    className={`px-3 py-1 rounded ${
-                      horarioSelecionado === valor ? "bg-black text-white" : "bg-gray-400 text-white"
-                    }`}
+                    className={`px-3 py-1 rounded ${horarioSelecionado === valor ? "bg-black text-white" : "bg-gray-400 text-white"}`}
                   >
                     {data} - {hora}
                   </button>
