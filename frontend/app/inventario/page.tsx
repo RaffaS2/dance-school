@@ -509,7 +509,6 @@ export default function InventoryPage() {
 	}
 
 	// ── Admin: Devoluções Pendentes ──────────────────────────────────────────
-	const isAdmin = utilizadorAtual?.id_user_type === 1;
 	const devoluçõesPendentes = useMemo(() => {
 		return requisicoes.filter(r => r.request_status === 2 && !r.return_date);
 	}, [requisicoes]);
