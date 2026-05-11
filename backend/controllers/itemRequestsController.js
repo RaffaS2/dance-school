@@ -85,14 +85,11 @@ const updateItemRequest = async (req, res) => {
         const userId = Number(req.user?.id)
 
         if (action === 'request_return') {
-            console.log(`[request_return] User ${userId} (type ${userType}) requesting return for item_request ${id}`);
-            
             if (request.return_date) {
                 return res.status(409).json({ error: 'Esta devolução já foi concluída.' })
             }
 
             if (userType !== 1 && request.id_user !== userId) {
-                console.log(`[request_return] Permission denied: user ${userId} not owner of request (owner: ${request.id_user})`);
                 return res.status(403).json({ error: 'Sem permissão para pedir a devolução desta requisição.' })
             }
 
@@ -100,12 +97,10 @@ const updateItemRequest = async (req, res) => {
                 return res.status(409).json({ error: 'Esta devolução já está pendente de aprovação.' })
             }
 
-            console.log(`[request_return] Setting request_status to 2 for item_request ${id}`);
             const result = await pool.query(
                 'UPDATE item_requests SET request_status = 2 WHERE id_item_request = $1 RETURNING *',
                 [id]
             )
-            console.log(`[request_return] Success: `, result.rows[0]);
             return res.status(200).json(result.rows[0])
         }
 
@@ -173,4 +168,21 @@ const deleteItemRequest = async (req, res) => {
     }
 }
 
-module.exports = { createItemRequest, readAllItemRequests, readItemRequestById, updateItemRequest, deleteItemRequest }
+// lista apenas as devoluções pendentes (request_status = 2)
+const getPendingReturns = async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT ir.*, i.name as item_name, u.name as user_name 
+             FROM item_requests ir
+             LEFT JOIN items i ON ir.id_item = i.id_item
+             LEFT JOIN users u ON ir.id_user = u.id_user
+             WHERE ir.request_status = 2 AND ir.return_date IS NULL
+             ORDER BY ir.request_date DESC`
+        )
+        res.json(result.rows)
+    } catch (error) {
+        res.status(500).json({ error: error.message })
+    }
+}
+
+module.exports = { createItemRequest, readAllItemRequests, readItemRequestById, updateItemRequest, deleteItemRequest, getPendingReturns }

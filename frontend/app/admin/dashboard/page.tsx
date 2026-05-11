@@ -91,7 +91,7 @@ export default function DashboardPage() {
 
   const loadDashboardData = useCallback(async (): Promise<DashboardData> => {
 
-    const [usersRaw, coachingsRaw, professorsRaw, modalitiesRaw, itemsRaw, itemRequestsRaw] =
+    const [usersRaw, coachingsRaw, professorsRaw, modalitiesRaw, itemsRaw, itemRequestsRaw, pendingReturnsRaw] =
       await Promise.allSettled([
         apiFetch<unknown>("/users"),
         apiFetch<unknown>("/coachings"),
@@ -99,6 +99,7 @@ export default function DashboardPage() {
         apiFetch<unknown>("/modalities"),
         apiFetch<unknown>("/items"),
         apiFetch<unknown>("/item-requests"),
+        apiFetch<unknown>("/item-requests/pending-returns"),
       ]);
 
     const count = (r: PromiseSettledResult<unknown>) =>
@@ -132,8 +133,8 @@ export default function DashboardPage() {
         : [];
 
     const itemRequestList: ItemRequest[] =
-      itemRequestsRaw.status === "fulfilled"
-        ? toArray<ItemRequest>(itemRequestsRaw.value)
+      pendingReturnsRaw.status === "fulfilled"
+        ? toArray<ItemRequest>(pendingReturnsRaw.value)
         : [];
 
     return {
@@ -166,10 +167,6 @@ export default function DashboardPage() {
   const pendingReturnRequests = state.itemRequests.filter(
     (request) => request.request_status === 2 && request.return_date === null,
   );
-  console.log('[Dashboard Debug] itemRequests:', state.itemRequests);
-  console.log('[Dashboard Debug] pendingReturnRequests:', pendingReturnRequests);
-  console.log('[Dashboard Debug] Filter condition - status===2 && return_date===null');
-  
   const itemById = new Map(state.items.map((item) => [item.id_item, item]));
   const userById = new Map(state.usersList.map((user) => [user.id_user, user]));
 
