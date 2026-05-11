@@ -167,7 +167,7 @@ export default function AddItemPage() {
 							type="file"
 							accept="image/*"
 							onChange={handleFileChange}
-							className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500 file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1 file:text-xs file:text-gray-600"
+							className="w-full cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition-colors hover:border-gray-400 focus:border-gray-500 file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1 file:text-xs file:text-gray-600"
 						/>
 						{previewImagem && (
 							<div className="mt-3 overflow-hidden rounded-lg border border-gray-200">
