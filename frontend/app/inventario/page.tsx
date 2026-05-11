@@ -503,7 +503,6 @@ export default function InventoryPage() {
 
 	const pillEstados: { label: string; value: ItemStatusFilter }[] = [
 		{ label: "Disponível",    value: "disponivel"   },
-		{ label: "Em Uso (meus)", value: "em-uso"       },
 		{ label: "Indisponível",  value: "indisponivel" },
 	];
 
@@ -576,15 +575,22 @@ export default function InventoryPage() {
 							) : (
 								<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 									{requisicoesAtivas.map((item) => (
-										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-											<Avatar initials={item.visual} />
-											<div style={{ flex: 1, minWidth: 0 }}>
+										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+											<div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+												<Avatar initials={item.visual} />
+												<div style={{ flex: 1, minWidth: 0 }}>
 												<p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nome}</p>
 												<p style={{ margin: "2px 0 0", fontSize: 11, color: C.muted }}>
 													Desde {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
 												</p>
 											</div>
+											</div>
+											<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 											<Badge estado="Em Uso" />
+											<button onClick={() => devolverItem(item)} disabled={itemEmAcao === item.id} style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: itemEmAcao === item.id ? "not-allowed" : "pointer", opacity: itemEmAcao === item.id ? 0.6 : 1, fontFamily: FONTS.sans }}>
+												{itemEmAcao === item.id ? "A devolver..." : "Devolver"}
+											</button>
+											</div>
 										</div>
 									))}
 								</div>
