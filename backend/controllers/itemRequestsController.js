@@ -2,6 +2,10 @@
 
 const pool = require('../db')
 
+function hojeISO() {
+    return new Date().toISOString().split('T')[0]
+}
+
 // cria um pedido de item
 const createItemRequest = async (req, res) => {
     try {
@@ -65,12 +69,91 @@ const readItemRequestById = async (req, res) => {
 const updateItemRequest = async (req, res) => {
     try {
         const { id } = req.params
-        const { request_date, return_date, id_item, id_user, delivery_status, request_status } = req.body
+        const { action, request_date, return_date, id_item, id_user, delivery_status, request_status } = req.body
+
+        const current = await pool.query(
+            'SELECT id_item_request, id_item, id_user, return_date, request_status FROM item_requests WHERE id_item_request = $1',
+            [id]
+        )
+
+        if (current.rows.length === 0) {
+            return res.status(404).json({ error: 'Requisição não encontrada.' })
+        }
+
+        const request = current.rows[0]
+        const userType = Number(req.user?.id_user_type)
+        const userId = Number(req.user?.id)
+
+        if (action === 'request_return') {
+            console.log(`[request_return] User ${userId} (type ${userType}) requesting return for item_request ${id}`);
+            
+            if (request.return_date) {
+                return res.status(409).json({ error: 'Esta devolução já foi concluída.' })
+            }
+
+            if (userType !== 1 && request.id_user !== userId) {
+                console.log(`[request_return] Permission denied: user ${userId} not owner of request (owner: ${request.id_user})`);
+                return res.status(403).json({ error: 'Sem permissão para pedir a devolução desta requisição.' })
+            }
+
+            if (request.request_status === 2) {
+                return res.status(409).json({ error: 'Esta devolução já está pendente de aprovação.' })
+            }
+
+            console.log(`[request_return] Setting request_status to 2 for item_request ${id}`);
+            const result = await pool.query(
+                'UPDATE item_requests SET request_status = 2 WHERE id_item_request = $1 RETURNING *',
+                [id]
+            )
+            console.log(`[request_return] Success: `, result.rows[0]);
+            return res.status(200).json(result.rows[0])
+        }
+
+        if (action === 'approve_return') {
+            if (userType !== 1) {
+                return res.status(403).json({ error: 'Apenas administradores podem aprovar devoluções.' })
+            }
+
+            if (request.return_date) {
+                return res.status(409).json({ error: 'Esta requisição já foi concluída.' })
+            }
+
+            if (request.request_status !== 2) {
+                return res.status(409).json({ error: 'Não existe um pedido de devolução pendente.' })
+            }
+
+            const result = await pool.query(
+                'UPDATE item_requests SET return_date = $1, request_status = 3 WHERE id_item_request = $2 RETURNING *',
+                [return_date || hojeISO(), id]
+            )
+            return res.status(200).json(result.rows[0])
+        }
+
+        if (action === 'reject_return') {
+            if (userType !== 1) {
+                return res.status(403).json({ error: 'Apenas administradores podem rejeitar devoluções.' })
+            }
+
+            if (request.return_date) {
+                return res.status(409).json({ error: 'Esta requisição já foi concluída.' })
+            }
+
+            if (request.request_status !== 2) {
+                return res.status(409).json({ error: 'Não existe um pedido de devolução pendente.' })
+            }
+
+            const result = await pool.query(
+                'UPDATE item_requests SET request_status = 1 WHERE id_item_request = $1 RETURNING *',
+                [id]
+            )
+            return res.status(200).json(result.rows[0])
+        }
+
         const result = await pool.query(
             'UPDATE item_requests SET request_date = $1, return_date = $2, id_item = $3, id_user = $4, delivery_status = $5, request_status = $6 WHERE id_item_request = $7 RETURNING *',
             [request_date, return_date, id_item, id_user, delivery_status, request_status, id]
         )
-        res.status(200).json(result.rows[0])
+        return res.status(200).json(result.rows[0])
     } catch (error) {
         res.status(500).json({ error: error.message })
     }
