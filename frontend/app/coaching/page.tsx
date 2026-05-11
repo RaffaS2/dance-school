@@ -41,11 +41,28 @@ type Availability = {
 	end_time: string;
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function formatDate(d: string) { return new Date(d).toLocaleDateString("pt-PT"); }
-function podeCancelar(status: string) { return !status?.toLowerCase().includes("cancelado"); }
+// ── Status helpers ─────────────────────────────────────────────────────────────
+// Normaliza qualquer status para uma das 3 categorias visuais
+function normalizeStatus(status: string): "confirmado" | "pendente" | "cancelado" | "outro" {
+	const s = status?.toLowerCase() ?? "";
+	if (s.includes("cancelado") || s.includes("rejeitado")) return "cancelado";
+	if (s.includes("confirmado") || s.includes("aprovado")) return "confirmado";
+	if (s.includes("pendente") || s.includes("aguard")) return "pendente";
+	return "outro";
+}
+
+function podeCancelar(status: string) {
+	const n = normalizeStatus(status);
+	return n !== "cancelado";
+}
+
+// ── Other helpers ──────────────────────────────────────────────────────────────
+function formatDate(d: string) {
+	return d?.split("T")[0]?.split("-").reverse().join("/") ?? "";
+}
+
 function initials(value: string) {
-	return value.split(" ").slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("").slice(0, 2);
+	return value?.split(" ").slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("").slice(0, 2) ?? "??";
 }
 
 // ── Paleta & tokens ───────────────────────────────────────────────────────────
@@ -75,15 +92,16 @@ const FONTS = {
 
 const ITEMS_PER_PAGE = 6;
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Badge ─────────────────────────────────────────────────────────────────────
 function Badge({ status }: { status: string }) {
-	const s = status?.toLowerCase();
-	const map: Record<string, { bg: string; color: string }> = {
-		confirmado: { bg: C.greenLight, color: C.green },
-		pendente:   { bg: C.amberLight, color: C.amber },
-		cancelado:  { bg: C.roseLight,  color: C.rose  },
+	const n = normalizeStatus(status);
+	const map: Record<string, { bg: string; color: string; label: string }> = {
+		confirmado: { bg: C.greenLight, color: C.green,  label: "Confirmado" },
+		pendente:   { bg: C.amberLight, color: C.amber,  label: "Pendente"   },
+		cancelado:  { bg: C.roseLight,  color: C.rose,   label: "Cancelado"  },
+		outro:      { bg: "rgba(139,135,160,0.10)", color: C.muted, label: status },
 	};
-	const style = map[s] ?? { bg: "rgba(139,135,160,0.10)", color: C.muted };
+	const style = map[n];
 	return (
 		<span style={{
 			display: "inline-flex", alignItems: "center", gap: 5,
@@ -92,7 +110,7 @@ function Badge({ status }: { status: string }) {
 			fontSize: 10, letterSpacing: "0.12em", fontWeight: 600, textTransform: "uppercase",
 		}}>
 			<span style={{ width: 5, height: 5, borderRadius: "50%", background: style.color, flexShrink: 0 }} />
-			{status}
+			{style.label}
 		</span>
 	);
 }
@@ -161,7 +179,8 @@ function CoachingCard({ c, cancelandoId, eliminandoId, onCancelar, onEliminar }:
 	const iv = initials(c.modalidade);
 	const isLoadingCancel = cancelandoId === c.id_coaching;
 	const isLoadingDelete = eliminandoId === c.id_coaching;
-	const isCancelado = c.status?.toLowerCase() === "cancelado";
+	const isCancelado = normalizeStatus(c.status) === "cancelado";
+
 	return (
 		<article
 			style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s" }}
@@ -201,7 +220,7 @@ function CoachingCard({ c, cancelandoId, eliminandoId, onCancelar, onEliminar }:
 						style={{ marginTop: 8, width: "100%", padding: "11px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(214,59,59,0.3)`, color: C.red, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoadingDelete ? "not-allowed" : "pointer", opacity: isLoadingDelete ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
 						onMouseEnter={e => { if (!isLoadingDelete) (e.currentTarget as HTMLElement).style.background = C.redLight; }}
 						onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-						{isLoadingDelete ? "A eliminar..." : "Eliminar "}
+						{isLoadingDelete ? "A eliminar..." : "Eliminar"}
 					</button>
 				)}
 			</div>
@@ -212,7 +231,9 @@ function CoachingCard({ c, cancelandoId, eliminandoId, onCancelar, onEliminar }:
 // ── AvailabilityCard ──────────────────────────────────────────────────────────
 function AvailabilityCard({ a, removendoId, onEliminar }: { a: Availability; removendoId: number | null; onEliminar: (a: Availability) => void }) {
 	const isLoading = removendoId === a.id_availability;
-	const diaSemana = new Date(a.date).toLocaleDateString("pt-PT", { weekday: "long" });
+	const dateFormatted = formatDate(a.date);
+	const dateObj = new Date(a.date.split("T")[0] + "T12:00:00");
+	const diaSemana = dateObj.toLocaleDateString("pt-PT", { weekday: "long" });
 	const diaCapitalizado = diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1);
 
 	return (
@@ -221,17 +242,14 @@ function AvailabilityCard({ a, removendoId, onEliminar }: { a: Availability; rem
 			onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px rgba(28,24,40,0.12)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
 			onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 20px rgba(28,24,40,0.05)"; (e.currentTarget as HTMLElement).style.transform = "none"; }}
 		>
-			{/* Topo colorido verde */}
 			<div style={{ height: 6, background: C.purpleGrad }} />
-
 			<div style={{ padding: "18px 20px 20px", flex: 1, display: "flex", flexDirection: "column" }}>
-				{/* Header */}
 				<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 14 }}>
 					<div style={{ display: "flex", alignItems: "center", gap: 12 }}>
 						<Avatar iv="DI" />
 						<div>
 							<h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: C.ink }}>{diaCapitalizado}</h3>
-							<p style={{ margin: "3px 0 0", fontSize: 11, color: C.muted }}>{formatDate(a.date)}</p>
+							<p style={{ margin: "3px 0 0", fontSize: 11, color: C.muted }}>{dateFormatted}</p>
 						</div>
 					</div>
 					<span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(59,43,92,0.10)", color: "#3B2B5C", padding: "3px 10px", borderRadius: 999, fontSize: 10, letterSpacing: "0.12em", fontWeight: 600, textTransform: "uppercase" }}>
@@ -239,10 +257,7 @@ function AvailabilityCard({ a, removendoId, onEliminar }: { a: Availability; rem
 						Livre
 					</span>
 				</div>
-
 				<div style={{ height: 1, background: C.border, marginBottom: 14 }} />
-
-				{/* Detalhes */}
 				<div style={{ display: "flex", flexDirection: "column", gap: 7, flex: 1 }}>
 					<DetailRow label="Professor" value={a.professor} />
 					<DetailRow label="Início" value={a.start_time?.slice(0, 5)} />
@@ -254,8 +269,6 @@ function AvailabilityCard({ a, removendoId, onEliminar }: { a: Availability; rem
 						return mins > 0 ? `${mins} min` : "—";
 					})()} />
 				</div>
-
-				{/* Botão eliminar */}
 				<button onClick={() => onEliminar(a)} disabled={isLoading}
 					style={{ marginTop: 16, width: "100%", padding: "11px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
 					onMouseEnter={e => { if (!isLoading) (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
@@ -270,28 +283,24 @@ function AvailabilityCard({ a, removendoId, onEliminar }: { a: Availability; rem
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function CoachingPage() {
 	const apiBase = getApiBase();
-	const [activeTab, setActiveTab] = useState<"coachings" | "disponibilidades">("coachings");
+	const [activeTab, setActiveTab] = useState<"coachings" | "aprovados" | "disponibilidades">("coachings");
 
-	// ── Session ───────────────────────────────────────────────────────────
 	const [utilizadorAtual, setUtilizadorAtual] = useState<SessionUser | null>(null);
 	const [loadingSessao, setLoadingSessao] = useState(true);
 
-	// ── Coachings state ───────────────────────────────────────────────────
 	const [coachings, setCoachings] = useState<ApiCoaching[]>([]);
 	const [loadingCoachings, setLoadingCoachings] = useState(true);
 	const [erroCoachings, setErroCoachings] = useState("");
 	const [cancelandoId, setCancelandoId] = useState<number | null>(null);
 	const [eliminandoId, setEliminandoId] = useState<number | null>(null);
 	const [pagina, setPagina] = useState(1);
-	const [filtroPill, setFiltroPill] = useState<"todos" | "pendente" | "confirmado" | "cancelado">("todos");
+	const [filtroPill, setFiltroPill] = useState<"pendente" | "confirmado" | "cancelado">("pendente");
 
-	// ── Availabilities state ──────────────────────────────────────────────
 	const [availabilities, setAvailabilities] = useState<Availability[]>([]);
 	const [loadingAvail, setLoadingAvail] = useState(true);
 	const [erroAvail, setErroAvail] = useState("");
 	const [removendoId, setRemovendoId] = useState<number | null>(null);
 
-	// ── Carregar sessão ───────────────────────────────────────────────────
 	const carregarSessao = useCallback(async () => {
 		setLoadingSessao(true);
 		try {
@@ -303,7 +312,6 @@ export default function CoachingPage() {
 		finally { setLoadingSessao(false); }
 	}, [apiBase]);
 
-	// ── Carregar coachings ────────────────────────────────────────────────
 	const carregarCoachings = useCallback(async (user: SessionUser) => {
 		setErroCoachings(""); setLoadingCoachings(true);
 		try {
@@ -328,7 +336,6 @@ export default function CoachingPage() {
 		finally { setLoadingCoachings(false); }
 	}, [apiBase]);
 
-	// ── Carregar disponibilidades ─────────────────────────────────────────
 	const carregarAvailabilities = useCallback(async () => {
 		setErroAvail(""); setLoadingAvail(true);
 		try {
@@ -339,7 +346,6 @@ export default function CoachingPage() {
 		finally { setLoadingAvail(false); }
 	}, [apiBase]);
 
-	// ── Cancelar coaching ─────────────────────────────────────────────────
 	const cancelarCoaching = async (coaching: ApiCoaching) => {
 		if (!window.confirm(`Cancelar o coaching de ${formatDate(coaching.date)} às ${coaching.start_time?.slice(0, 5)}?`)) return;
 		setCancelandoId(coaching.id_coaching);
@@ -358,7 +364,6 @@ export default function CoachingPage() {
 		finally { setCancelandoId(null); }
 	};
 
-	// ── Eliminar coaching ─────────────────────────────────────────────────
 	const eliminarCoaching = async (coaching: ApiCoaching) => {
 		if (!window.confirm(`Tens a certeza que queres eliminar definitivamente o coaching de ${formatDate(coaching.date)} às ${coaching.start_time?.slice(0, 5)}? Esta ação não pode ser desfeita.`)) return;
 		setEliminandoId(coaching.id_coaching);
@@ -371,9 +376,8 @@ export default function CoachingPage() {
 		finally { setEliminandoId(null); }
 	};
 
-	// ── Eliminar disponibilidade ──────────────────────────────────────────
 	const eliminarAvailability = async (a: Availability) => {
-		if (!window.confirm(`Eliminar disponibilidade de ${formatDate(a.date)} das ${a.start_time?.slice(0,5)} às ${a.end_time?.slice(0,5)}?`)) return;
+		if (!window.confirm(`Eliminar disponibilidade de ${formatDate(a.date)} das ${a.start_time?.slice(0, 5)} às ${a.end_time?.slice(0, 5)}?`)) return;
 		setRemovendoId(a.id_availability);
 		setErroAvail("");
 		try {
@@ -384,7 +388,6 @@ export default function CoachingPage() {
 		finally { setRemovendoId(null); }
 	};
 
-	// ── Effects ───────────────────────────────────────────────────────────
 	useEffect(() => { void carregarSessao(); }, [carregarSessao]);
 	useEffect(() => {
 		if (!loadingSessao && utilizadorAtual) {
@@ -397,16 +400,16 @@ export default function CoachingPage() {
 	}, [loadingSessao, utilizadorAtual, carregarCoachings, carregarAvailabilities]);
 	useEffect(() => { setPagina(1); }, [filtroPill]);
 
-	// ── Derived data ──────────────────────────────────────────────────────
+	// ── counts usam normalizeStatus ───────────────────────────────────────
 	const counts = useMemo(() => ({
-		todos: coachings.length,
-		pendente: coachings.filter(c => c.status?.toLowerCase() === "pendente").length,
-		confirmado: coachings.filter(c => c.status?.toLowerCase() === "confirmado").length,
-		cancelado: coachings.filter(c => c.status?.toLowerCase() === "cancelado").length,
+		pendente:   coachings.filter(c => normalizeStatus(c.status) === "pendente").length,
+		confirmado: coachings.filter(c => normalizeStatus(c.status) === "confirmado").length,
+		cancelado:  coachings.filter(c => normalizeStatus(c.status) === "cancelado").length,
 	}), [coachings]);
 
+	// ── filtro usa normalizeStatus ────────────────────────────────────────
 	const coachingsFiltrados = useMemo(() =>
-		filtroPill === "todos" ? coachings : coachings.filter(c => c.status?.toLowerCase() === filtroPill),
+		coachings.filter(c => normalizeStatus(c.status) === filtroPill),
 		[coachings, filtroPill]
 	);
 
@@ -423,32 +426,31 @@ export default function CoachingPage() {
 	}, [availabilities, utilizadorAtual]);
 
 	const pills: { label: string; value: typeof filtroPill; count: number }[] = [
-		{ label: "Todos", value: "todos", count: counts.todos },
-		{ label: "Pendente", value: "pendente", count: counts.pendente },
+		{ label: "Pendente",   value: "pendente",   count: counts.pendente   },
 		{ label: "Confirmado", value: "confirmado", count: counts.confirmado },
-		{ label: "Cancelado", value: "cancelado", count: counts.cancelado },
+		{ label: "Cancelado",  value: "cancelado",  count: counts.cancelado  },
 	];
+
+	const coachingsAprovados = useMemo(() =>
+		coachings.filter(c => c.professor_validation === true),
+	[coachings]);
 
 	const isProf = utilizadorAtual?.id_user_type === 2;
 
-	// ── Render ────────────────────────────────────────────────────────────
 	return (
 		<div style={{ minHeight: "100vh", background: "radial-gradient(circle at center, #ffffff 0%, #f7f3f9 100%)", fontFamily: FONTS.sans, position: "relative", overflow: "hidden" }}>
-			{/* Círculos decorativos */}
 			<div style={{ position: "fixed", top: -200, left: -200, width: 600, height: 600, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(212,83,126,0.03)", pointerEvents: "none", zIndex: 0 }} />
-			<div style={{ position: "fixed", top: -200, left: -200, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.06)", background: "rgba(212,83,126,0.02)", pointerEvents: "none", zIndex: 0 }} />
 			<div style={{ position: "fixed", bottom: -150, right: -150, width: 400, height: 400, borderRadius: "50%", border: "1px solid rgba(212,83,126,0.08)", background: "rgba(127,119,221,0.03)", pointerEvents: "none", zIndex: 0 }} />
 
 			<div style={{ position: "relative", zIndex: 1, maxWidth: 1200, margin: "0 auto", padding: "32px 24px 60px" }}>
 
-				{/* ── Page header ─────────────────────────────────────────── */}
+				{/* Header */}
 				<div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
 					<div>
 						<p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.rose, fontWeight: 600, marginBottom: 6 }}>As Minhas Aulas</p>
 						<h1 style={{ fontFamily: FONTS.serif, fontSize: 42, fontWeight: 400, color: C.ink, lineHeight: 1, margin: 0 }}>Coachings</h1>
 					</div>
 					<div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-						{/* Botão condicional por tab */}
 						{activeTab === "coachings" ? (
 							<Link href="/coaching/novo" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: C.purpleGrad, color: "#fff", padding: "12px 22px", borderRadius: 12, fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none", boxShadow: "0 4px 16px rgba(30,19,48,0.25)" }}>
 								<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -463,51 +465,32 @@ export default function CoachingPage() {
 					</div>
 				</div>
 
-				{/* ── Session alert ────────────────────────────────────────── */}
+				{/* Session alert */}
 				{!loadingSessao && !utilizadorAtual && (
 					<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.roseSoft, border: `1px solid rgba(201,75,115,0.2)`, color: C.rose, fontSize: 12 }}>
 						Sessão não encontrada. <Link href="/login" style={{ fontWeight: 700, color: C.rose }}>Inicia sessão</Link> para continuar.
 					</div>
 				)}
 
-				{/* ── Tabs ─────────────────────────────────────────────────── */}
+				{/* Tabs */}
 				<div style={{ display: "flex", gap: 4, marginBottom: 24, background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: 6, width: "fit-content", boxShadow: "0 2px 12px rgba(28,24,40,0.04)" }}>
 					{[
-						{ key: "coachings", label: "Coachings", count: counts.todos, icon: "" },
-						...(isProf ? [{ key: "disponibilidades", label: "Disponibilidades", count: availabilidadesFiltradas.length, icon: "" }] : []),
+						{ key: "coachings",        label: "Coachings",        count: coachings.length                },
+						...(isProf ? [{ key: "disponibilidades", label: "Disponibilidades", count: availabilidadesFiltradas.length }] : []),
 					].map(tab => (
-						<button
-							key={tab.key}
-							onClick={() => setActiveTab(tab.key as typeof activeTab)}
-							style={{
-								display: "inline-flex", alignItems: "center", gap: 8,
-								padding: "9px 18px", borderRadius: 10, border: "none",
-								fontSize: 12, fontWeight: 700, letterSpacing: "0.08em",
-								cursor: "pointer", transition: "all 0.18s", fontFamily: FONTS.sans,
-								background: activeTab === tab.key ? C.purpleGrad : "transparent",
-								color: activeTab === tab.key ? "#fff" : C.muted,
-								boxShadow: activeTab === tab.key ? "0 4px 12px rgba(30,19,48,0.2)" : "none",
-							}}
-						>
-							<span>{tab.icon}</span>
+						<button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
+							style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 18px", borderRadius: 10, border: "none", fontSize: 12, fontWeight: 700, letterSpacing: "0.08em", cursor: "pointer", transition: "all 0.18s", fontFamily: FONTS.sans, background: activeTab === tab.key ? C.purpleGrad : "transparent", color: activeTab === tab.key ? "#fff" : C.muted, boxShadow: activeTab === tab.key ? "0 4px 12px rgba(30,19,48,0.2)" : "none" }}>
 							<span style={{ textTransform: "uppercase" }}>{tab.label}</span>
-							<span style={{
-								fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999,
-								background: activeTab === tab.key ? "rgba(255,255,255,0.2)" : C.border,
-								color: activeTab === tab.key ? "#fff" : C.muted,
-							}}>{tab.count}</span>
+							<span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: activeTab === tab.key ? "rgba(255,255,255,0.2)" : C.border, color: activeTab === tab.key ? "#fff" : C.muted }}>{tab.count}</span>
 						</button>
 					))}
 				</div>
 
-				{/* ══════════════════════════════════════════════════════════ */}
-				{/* TAB: COACHINGS                                            */}
-				{/* ══════════════════════════════════════════════════════════ */}
+				{/* TAB: COACHINGS */}
 				{activeTab === "coachings" && (
 					<>
 						{loadingCoachings && (
-							<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
-								<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" /></svg>
+							<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
 								A carregar coachings...
 							</div>
 						)}
@@ -516,7 +499,6 @@ export default function CoachingPage() {
 						)}
 						{!loadingCoachings && utilizadorAtual && (
 							<>
-								{/* Filtros */}
 								<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px", marginBottom: 24 }}>
 									<p style={{ margin: "0 0 12px", fontSize: 10, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Filtrar por Estado</p>
 									<div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -537,7 +519,6 @@ export default function CoachingPage() {
 
 								{coachingsFiltrados.length === 0 ? (
 									<div style={{ textAlign: "center", padding: "60px 20px" }}>
-										<div style={{ fontSize: 48, marginBottom: 16, color: C.border }}>—</div>
 										<p style={{ fontFamily: FONTS.serif, fontSize: 24, color: C.inkMid, margin: "0 0 8px" }}>Sem coachings</p>
 										<p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Não foram encontrados coachings com este estado.</p>
 									</div>
@@ -556,14 +537,43 @@ export default function CoachingPage() {
 					</>
 				)}
 
-				{/* ══════════════════════════════════════════════════════════ */}
-				{/* TAB: DISPONIBILIDADES                                     */}
-				{/* ══════════════════════════════════════════════════════════ */}
+				{/* TAB: APROVADOS */}
+				{activeTab === "aprovados" && (
+					<>
+						{loadingCoachings && (
+							<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+								A carregar...
+							</div>
+						)}
+						{!loadingCoachings && utilizadorAtual && (
+							<>
+								<div style={{ marginBottom: 16 }}>
+									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>
+										<strong style={{ color: C.ink }}>{coachingsAprovados.length}</strong> {coachingsAprovados.length === 1 ? "coaching aprovado pelo professor" : "coachings aprovados pelo professor"}
+									</p>
+								</div>
+								{coachingsAprovados.length === 0 ? (
+									<div style={{ textAlign: "center", padding: "60px 20px" }}>
+										<p style={{ fontFamily: FONTS.serif, fontSize: 24, color: C.inkMid, margin: "0 0 8px" }}>Sem coachings aprovados</p>
+										<p style={{ fontSize: 13, color: C.muted, margin: 0 }}>Ainda não existem coachings validados pelo professor.</p>
+									</div>
+								) : (
+									<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+										{coachingsAprovados.map(c => (
+											<CoachingCard key={c.id_coaching} c={c} cancelandoId={cancelandoId} eliminandoId={eliminandoId} onCancelar={cancelarCoaching} onEliminar={eliminarCoaching} />
+										))}
+									</div>
+								)}
+							</>
+						)}
+					</>
+				)}
+
+				{/* TAB: DISPONIBILIDADES */}
 				{activeTab === "disponibilidades" && (
 					<>
 						{loadingAvail && (
-							<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12, display: "flex", alignItems: "center", gap: 8 }}>
-								<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ animation: "spin 1s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56" strokeLinecap="round" /></svg>
+							<div style={{ borderRadius: 12, padding: "12px 16px", marginBottom: 20, background: C.white, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
 								A carregar disponibilidades...
 							</div>
 						)}
@@ -577,10 +587,8 @@ export default function CoachingPage() {
 										<strong style={{ color: C.ink }}>{availabilidadesFiltradas.length}</strong> {availabilidadesFiltradas.length === 1 ? "slot encontrado" : "slots encontrados"}
 									</p>
 								</div>
-
 								{availabilidadesFiltradas.length === 0 ? (
 									<div style={{ textAlign: "center", padding: "60px 20px" }}>
-										<div style={{ fontSize: 48, marginBottom: 16, color: C.border }}>—</div>
 										<p style={{ fontFamily: FONTS.serif, fontSize: 24, color: C.inkMid, margin: "0 0 8px" }}>Sem disponibilidades</p>
 										<p style={{ fontSize: 13, color: C.muted, margin: 0 }}>
 											{isProf ? "Marca uma disponibilidade para aparecer aqui." : "Não existem disponibilidades registadas."}
