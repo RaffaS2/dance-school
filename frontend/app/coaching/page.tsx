@@ -157,9 +157,11 @@ function Pagination({ page, total, perPage, onChange }: { page: number; total: n
 }
 
 // ── CoachingCard ──────────────────────────────────────────────────────────────
-function CoachingCard({ c, cancelandoId, onCancelar }: { c: ApiCoaching; cancelandoId: number | null; onCancelar: (c: ApiCoaching) => void }) {
+function CoachingCard({ c, cancelandoId, eliminandoId, onCancelar, onEliminar }: { c: ApiCoaching; cancelandoId: number | null; eliminandoId: number | null; onCancelar: (c: ApiCoaching) => void; onEliminar: (c: ApiCoaching) => void }) {
 	const iv = initials(c.modalidade);
-	const isLoading = cancelandoId === c.id_coaching;
+	const isLoadingCancel = cancelandoId === c.id_coaching;
+	const isLoadingDelete = eliminandoId === c.id_coaching;
+	const isCancelado = c.status?.toLowerCase() === "cancelado";
 	return (
 		<article
 			style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s" }}
@@ -187,11 +189,19 @@ function CoachingCard({ c, cancelandoId, onCancelar }: { c: ApiCoaching; cancela
 					<DetailRow label="Duração" value={`${c.duration_minutes} min`} />
 				</div>
 				{podeCancelar(c.status) && (
-					<button onClick={() => onCancelar(c)} disabled={isLoading}
-						style={{ marginTop: 16, width: "100%", padding: "11px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
-						onMouseEnter={e => { if (!isLoading) (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
+					<button onClick={() => onCancelar(c)} disabled={isLoadingCancel}
+						style={{ marginTop: 16, width: "100%", padding: "11px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoadingCancel ? "not-allowed" : "pointer", opacity: isLoadingCancel ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
+						onMouseEnter={e => { if (!isLoadingCancel) (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
 						onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-						{isLoading ? "A cancelar..." : "Cancelar Coaching"}
+						{isLoadingCancel ? "A cancelar..." : "Cancelar Coaching"}
+					</button>
+				)}
+				{isCancelado && (
+					<button onClick={() => onEliminar(c)} disabled={isLoadingDelete}
+						style={{ marginTop: 8, width: "100%", padding: "11px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(214,59,59,0.3)`, color: C.red, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoadingDelete ? "not-allowed" : "pointer", opacity: isLoadingDelete ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
+						onMouseEnter={e => { if (!isLoadingDelete) (e.currentTarget as HTMLElement).style.background = C.redLight; }}
+						onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
+						{isLoadingDelete ? "A eliminar..." : "Eliminar "}
 					</button>
 				)}
 			</div>
@@ -271,6 +281,7 @@ export default function CoachingPage() {
 	const [loadingCoachings, setLoadingCoachings] = useState(true);
 	const [erroCoachings, setErroCoachings] = useState("");
 	const [cancelandoId, setCancelandoId] = useState<number | null>(null);
+	const [eliminandoId, setEliminandoId] = useState<number | null>(null);
 	const [pagina, setPagina] = useState(1);
 	const [filtroPill, setFiltroPill] = useState<"todos" | "pendente" | "confirmado" | "cancelado">("todos");
 
@@ -345,6 +356,19 @@ export default function CoachingPage() {
 			if (utilizadorAtual) await carregarCoachings(utilizadorAtual);
 		} catch (err) { setErroCoachings(err instanceof Error ? err.message : "Erro ao cancelar."); }
 		finally { setCancelandoId(null); }
+	};
+
+	// ── Eliminar coaching ─────────────────────────────────────────────────
+	const eliminarCoaching = async (coaching: ApiCoaching) => {
+		if (!window.confirm(`Tens a certeza que queres eliminar definitivamente o coaching de ${formatDate(coaching.date)} às ${coaching.start_time?.slice(0, 5)}? Esta ação não pode ser desfeita.`)) return;
+		setEliminandoId(coaching.id_coaching);
+		setErroCoachings("");
+		try {
+			const res = await fetch(`${apiBase}/coachings/${coaching.id_coaching}`, { method: "DELETE", credentials: "include" });
+			if (!res.ok) throw new Error("Não foi possível eliminar o coaching.");
+			if (utilizadorAtual) await carregarCoachings(utilizadorAtual);
+		} catch (err) { setErroCoachings(err instanceof Error ? err.message : "Erro ao eliminar."); }
+		finally { setEliminandoId(null); }
 	};
 
 	// ── Eliminar disponibilidade ──────────────────────────────────────────
@@ -521,7 +545,7 @@ export default function CoachingPage() {
 									<>
 										<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
 											{coachingsPaginados.map(c => (
-												<CoachingCard key={c.id_coaching} c={c} cancelandoId={cancelandoId} onCancelar={cancelarCoaching} />
+												<CoachingCard key={c.id_coaching} c={c} cancelandoId={cancelandoId} eliminandoId={eliminandoId} onCancelar={cancelarCoaching} onEliminar={eliminarCoaching} />
 											))}
 										</div>
 										<Pagination page={pagina} total={coachingsFiltrados.length} perPage={ITEMS_PER_PAGE} onChange={setPagina} />

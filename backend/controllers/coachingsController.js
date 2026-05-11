@@ -204,16 +204,26 @@ const updateCoaching = async (req, res) => {
     }
 }
 
-// elimina o coaching pelo id
+// elimina o coaching pelo id — apaga primeiro os studentCoachings associados
 const deleteCoaching = async (req, res) => {
     try {
         const { id } = req.params
+
+        // Apagar registos dependentes primeiro (foreign key)
+        await pool.query('DELETE FROM student_coachings WHERE id_coaching = $1', [id])
+
         const result = await pool.query(
             'DELETE FROM coachings WHERE id_coaching = $1 RETURNING *',
             [id]
         )
-        res.status(204).json(result.rows[0])
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Coaching não encontrado.' })
+        }
+
+        res.status(200).json({ message: 'Coaching eliminado com sucesso.' })
     } catch (error) {
+        console.error('Erro ao eliminar coaching:', error)
         res.status(500).json({ error: error.message })
     }
 }
