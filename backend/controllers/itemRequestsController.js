@@ -81,8 +81,12 @@ const updateItemRequest = async (req, res) => {
         }
 
         const request = current.rows[0]
-        const userType = Number(req.user?.id_user_type)
         const userId = Number(req.user?.id)
+
+        // Obter o tipo de utilizador diretamente da base de dados para evitar
+        // inconsistências quando o token JWT estiver desatualizado.
+        const userRow = await pool.query('SELECT id_user_type FROM users WHERE id_user = $1', [userId])
+        const userType = userRow.rows.length > 0 ? Number(userRow.rows[0].id_user_type) : 0
 
         if (action === 'request_return') {
             if (request.return_date) {
@@ -135,6 +139,22 @@ const updateItemRequest = async (req, res) => {
 
             if (request.request_status !== 2) {
                 return res.status(409).json({ error: 'Não existe um pedido de devolução pendente.' })
+            }
+
+            const result = await pool.query(
+                'UPDATE item_requests SET request_status = 1 WHERE id_item_request = $1 RETURNING *',
+                [id]
+            )
+            return res.status(200).json(result.rows[0])
+        }
+
+        if (action === 'cancel_return') {
+            if (request.request_status !== 2) {
+                return res.status(409).json({ error: 'Não existe um pedido de devolução pendente.' })
+            }
+
+            if (userType !== 1 && request.id_user !== userId) {
+                return res.status(403).json({ error: 'Sem permissão para cancelar esta devolução.' })
             }
 
             const result = await pool.query(

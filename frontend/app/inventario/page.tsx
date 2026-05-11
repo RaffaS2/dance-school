@@ -362,7 +362,7 @@ export default function InventoryPage() {
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
 	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("disponivel");
 	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
-	const isAdmin = utilizadorAtual?.id_user_type === 1;
+	const isAdmin = Number(utilizadorAtual?.id_user_type) === 1;
 
 	// ── Pagination state ─────────────────────────────────────────────────────
 	const [paginaItens, setPaginaItens] = useState(1);
@@ -496,6 +496,21 @@ export default function InventoryPage() {
 		finally { setItemEmAcao(null); }
 	}
 
+	async function cancelarDevolucao(item: InventoryItem) {
+		const request = requisicaoAtivaPorItem.get(item.id);
+		if (!request || request.request_status !== 2) return;
+		setItemEmAcao(item.id);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "cancel_return" }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao cancelar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível cancelar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
 	async function removerItem(item: InventoryItem) {
 		if (requisicaoAtivaPorItem.has(item.id)) { alert("Não é possível remover este item enquanto estiver em teu poder."); return; }
 		if (!window.confirm(`Remover o item "${item.nome}" do inventário?`)) return;
@@ -564,6 +579,7 @@ export default function InventoryPage() {
 						<p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.rose, fontWeight: 600, marginBottom: 6 }}>Gestão de Material</p>
 						<h1 style={{ fontFamily: FONTS.serif, fontSize: 42, fontWeight: 400, color: C.ink, lineHeight: 1, margin: 0 }}>Inventário</h1>
 					</div>
+
 					<Link href="/inventario/novo" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: C.purpleGrad, color: "#fff", padding: "12px 22px", borderRadius: 12, fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 4px 16px rgba(30,19,48,0.25)" }}>
 						<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
 							<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -592,8 +608,8 @@ export default function InventoryPage() {
 					</div>
 				)}
 
-				{/* Top grid */}
-				<div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 24, alignItems: "start" }}>
+				{/* Top grid: left = Requisições, middle = Filtros, right = Admin (vertical) */}
+				<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 360px", gap: 16, marginBottom: 24, alignItems: "start" }}>
 					{/* Requisições ativas */}
 					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
 						<div style={{ padding: "20px 20px 0" }}>
@@ -625,15 +641,15 @@ export default function InventoryPage() {
 												<p style={{ margin: "2px 0 0", fontSize: 11, color: C.muted }}>
 														Desde {formatDate(request?.request_date ?? hojeISO())}
 												</p>
-													{devolucaoPendente && (
-														<p style={{ margin: "4px 0 0", fontSize: 10, color: C.rose, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>Pedido de devolução pendente</p>
-													)}
 											</div>
 											</div>
 											<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 											<Badge estado="Em Uso" />
-												<button onClick={() => devolverItem(item)} disabled={itemEmAcao === item.id || devolucaoPendente} style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: (itemEmAcao === item.id || devolucaoPendente) ? "not-allowed" : "pointer", opacity: (itemEmAcao === item.id || devolucaoPendente) ? 0.6 : 1, fontFamily: FONTS.sans }}>
-													{itemEmAcao === item.id ? "A pedir..." : devolucaoPendente ? "Pendente" : "Pedir devolução"}
+													<button
+														onClick={() => devolucaoPendente ? cancelarDevolucao(item) : devolverItem(item)}
+														disabled={itemEmAcao === item.id}
+														style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: itemEmAcao === item.id ? "not-allowed" : "pointer", opacity: itemEmAcao === item.id ? 0.6 : 1, fontFamily: FONTS.sans }}>
+													{itemEmAcao === item.id ? "A processar..." : devolucaoPendente ? "Pendente" : "Pedir devolução"}
 											</button>
 											</div>
 										</div>
@@ -645,7 +661,7 @@ export default function InventoryPage() {
 						</div>
 					</div>
 
-					{/* Filtros */}
+					{/* Filtros (centro) */}
 					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px" }}>
 						<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Pesquisa</p>
 						<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: "0 0 20px" }}>Filtros</h2>
@@ -659,6 +675,8 @@ export default function InventoryPage() {
 								onBlur={e => (e.target.style.borderColor = C.border)}
 							/>
 						</div>
+
+				
 						<div style={{ marginBottom: 16 }}>
 							<p style={{ margin: "0 0 8px", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Categoria</p>
 							<select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}
@@ -676,6 +694,45 @@ export default function InventoryPage() {
 							</div>
 						</div>
 					</div>
+
+					{/* Admin: Devoluções Pendentes (panel vertical, right) - apenas admins */}
+					{isAdmin && (
+						<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", height: "fit-content" }}>
+							<div style={{ padding: "20px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+								<div>
+									<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
+									<h3 style={{ fontFamily: FONTS.serif, fontSize: 16, fontWeight: 400, color: C.ink, margin: 0 }}>Devoluções</h3>
+								</div>
+								<span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans, padding: "3px 10px", borderRadius: 999, background: C.roseLight, color: C.rose }}>
+									{devoluçõesPendentes.length}
+								</span>
+							</div>
+							<div style={{ display: "flex", flexDirection: "column", gap: 0, padding: 12 }}>
+								{devoluçõesPendentes.length === 0 ? (
+									<div style={{ padding: "8px 12px", color: C.muted, fontSize: 12 }}>
+										Sem devoluções pendentes.
+									</div>
+								) : (
+									devoluçõesPendentes.map((request) => {
+										const item = itens.find(i => i.id === request.id_item);
+										const utilizador = typeof request.id_user === "number" ? { id_user: request.id_user, name: `Utilizador #${request.id_user}` } : null;
+										return (
+											<div key={request.id_item_request} style={{ padding: "10px 12px", borderBottom: `1px dashed ${C.border}`, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+												<div style={{ minWidth: 0 }}>
+													<p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item?.nome ?? `Item #${request.id_item}`}</p>
+													<p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>{utilizador?.name ?? `Utilizador #${request.id_user}`}</p>
+												</div>
+												<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+													<button onClick={() => aprovarDevolucao(request.id_item_request)} disabled={itemEmAcao === request.id_item_request} style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, fontFamily: FONTS.sans }}>Aprovar</button>
+													<button onClick={() => rejeitarDevolucao(request.id_item_request)} disabled={itemEmAcao === request.id_item_request} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.ink, fontSize: 11, fontWeight: 700, cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, fontFamily: FONTS.sans }}>Recusar</button>
+												</div>
+											</div>
+										);
+									})
+								)}
+							</div>
+						</div>
+					)}
 				</div>
 
 				{/* Results count */}
@@ -691,84 +748,7 @@ export default function InventoryPage() {
 					)}
 				</div>
 
-				{/* Devoluções Pendentes (Admin) */}
-				{isAdmin && devoluçõesPendentes.length > 0 && (
-					<div style={{ marginBottom: 32, background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
-						<div style={{ padding: "20px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-							<div>
-								<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
-								<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: 0 }}>Devoluções Pendentes</h2>
-							</div>
-							<span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans, padding: "3px 10px", borderRadius: 999, background: C.roseLight, color: C.rose }}>
-								{devoluçõesPendentes.length}
-							</span>
-						</div>
-						<div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-							{devoluçõesPendentes.map((request, idx) => {
-								const item = itens.find(i => i.id === request.id_item);
-								const utilizador = typeof request.id_user === 'number' ? { id_user: request.id_user, name: `Utilizador #${request.id_user}` } : null;
-								return (
-									<div key={request.id_item_request} style={{ 
-										padding: "16px 24px", 
-										borderBottom: idx < devoluçõesPendentes.length - 1 ? `1px solid ${C.border}` : "none",
-										display: "flex", 
-										alignItems: "center", 
-										justifyContent: "space-between", 
-										gap: 16,
-										"&:hover": { background: C.surface }
-									}}>
-										<div style={{ flex: 1, minWidth: 0 }}>
-											<p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: C.ink }}>{item?.nome ?? `Item #${request.id_item}`}</p>
-											<p style={{ margin: 0, fontSize: 11, color: C.muted }}>
-												Solicitado por {utilizador?.name ?? `Utilizador #${request.id_user}`} em {formatDate(request.request_date)}
-											</p>
-										</div>
-										<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-											<button 
-												onClick={() => aprovarDevolucao(request.id_item_request)}
-												disabled={itemEmAcao === request.id_item_request}
-												style={{ 
-													padding: "8px 16px", 
-													borderRadius: 8, 
-													border: "none",
-													background: C.green, 
-													color: C.white, 
-													fontSize: 10, 
-													fontWeight: 700, 
-													letterSpacing: "0.12em", 
-													textTransform: "uppercase", 
-													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
-													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
-													fontFamily: FONTS.sans 
-												}}>
-												{itemEmAcao === request.id_item_request ? "A processar..." : "Aprovar"}
-											</button>
-											<button 
-												onClick={() => rejeitarDevolucao(request.id_item_request)}
-												disabled={itemEmAcao === request.id_item_request}
-												style={{ 
-													padding: "8px 16px", 
-													borderRadius: 8, 
-													border: `1px solid ${C.border}`,
-													background: C.white, 
-													color: C.ink, 
-													fontSize: 10, 
-													fontWeight: 700, 
-													letterSpacing: "0.12em", 
-													textTransform: "uppercase", 
-													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
-													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
-													fontFamily: FONTS.sans 
-												}}>
-												{itemEmAcao === request.id_item_request ? "A processar..." : "Recusar"}
-											</button>
-										</div>
-									</div>
-								);
-							})}
-						</div>
-					</div>
-				)}
+				{/* (Admin panel moved to top-grid right column) */}
 
 				{/* Results count */}
 				{meusItens.length > 0 && (
