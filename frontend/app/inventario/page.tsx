@@ -609,9 +609,9 @@ export default function InventoryPage() {
 				)}
 
 				{/* Top grid: left = Requisições, middle = Filtros, right = Admin (vertical) */}
-				<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 360px", gap: 16, marginBottom: 24, alignItems: "start" }}>
+				<div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr 360px" : "1fr 2fr", gap: 16, marginBottom: 24, alignItems: "stretch" }}>
 					{/* Requisições ativas */}
-					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
 						<div style={{ padding: "20px 20px 0" }}>
 							<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>As Minhas</p>
 							<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -621,7 +621,7 @@ export default function InventoryPage() {
 								</span>
 							</div>
 						</div>
-						<div style={{ padding: "0 20px 20px" }}>
+						<div style={{ padding: "0 20px 20px", flex: 1, overflow: "auto" }}>
 							{requisicoesAtivas.length === 0 ? (
 								<div style={{ borderRadius: 10, border: `1.5px dashed ${C.border}`, padding: "24px 16px", textAlign: "center" }}>
 									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>Nenhum item em teu poder.</p>
@@ -662,7 +662,7 @@ export default function InventoryPage() {
 					</div>
 
 					{/* Filtros (centro) */}
-					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px" }}>
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px", display: "flex", flexDirection: "column", height: "100%" }}>
 						<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Pesquisa</p>
 						<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: "0 0 20px" }}>Filtros</h2>
 						<div style={{ position: "relative", marginBottom: 16 }}>
@@ -697,7 +697,7 @@ export default function InventoryPage() {
 
 					{/* Admin: Devoluções Pendentes (panel vertical, right) - apenas admins */}
 					{isAdmin && (
-						<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", height: "fit-content" }}>
+						<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
 							<div style={{ padding: "20px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 								<div>
 									<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
@@ -707,7 +707,7 @@ export default function InventoryPage() {
 									{devoluçõesPendentes.length}
 								</span>
 							</div>
-							<div style={{ display: "flex", flexDirection: "column", gap: 0, padding: 12 }}>
+							<div style={{ display: "flex", flexDirection: "column", gap: 0, padding: 12, flex: 1, overflow: "auto" }}>
 								{devoluçõesPendentes.length === 0 ? (
 									<div style={{ padding: "8px 12px", color: C.muted, fontSize: 12 }}>
 										Sem devoluções pendentes.
