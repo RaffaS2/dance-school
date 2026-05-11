@@ -42,12 +42,17 @@ function toIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function fromIsoDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function formatMonthTitle(date: Date) {
   return date.toLocaleDateString("pt-PT", { month: "long", year: "numeric" });
 }
 
 function formatDateLabel(date: string) {
-  return new Date(date).toLocaleDateString("pt-PT", {
+  return fromIsoDate(date).toLocaleDateString("pt-PT", {
     weekday: "long",
     day: "2-digit",
     month: "long",
@@ -56,6 +61,21 @@ function formatDateLabel(date: string) {
 
 function formatTimeLabel(value: string) {
   return value?.slice(0, 5);
+}
+
+function startOfWeek(date: Date) {
+  const result = new Date(date);
+  const day = (result.getDay() + 6) % 7;
+  result.setDate(result.getDate() - day);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function endOfWeek(date: Date) {
+  const result = startOfWeek(date);
+  result.setDate(result.getDate() + 6);
+  result.setHours(23, 59, 59, 999);
+  return result;
 }
 
 // ── Paleta ────────────────────────────────────────────────────────────────────
@@ -70,10 +90,12 @@ const C = {
   surface:   "#FAFAF8",
   white:     "#FFFFFF",
   purpleGrad:"linear-gradient(135deg,#3B2B5C 0%,#1E1330 100%)",
-  green:     "#1A9E5C",
-  greenLight:"rgba(26,158,92,0.10)",
-  amber:     "#C97A1A",
-  amberLight:"rgba(201,122,26,0.10)",
+  green:     "#00A854",
+  greenLight:"rgba(0,168,84,0.10)",
+  amber:     "#FFB81C",
+  amberLight:"rgba(255,184,28,0.12)",
+  blue:      "#1A73E8",
+  blueLight: "rgba(26,115,232,0.10)",
   red:       "#D63B3B",
   redLight:  "rgba(214,59,59,0.10)",
 };
@@ -85,11 +107,20 @@ const FONTS = {
 
 function estadoBadge(status: string) {
   const s = status?.toLowerCase();
-  if (s === "confirmado") return { bg: C.greenLight, color: C.green };
-  if (s === "pendente")   return { bg: C.amberLight, color: C.amber };
-  if (s === "cancelado")  return { bg: C.roseLight,  color: C.rose  };
+  if (s === "confirmado" || s === "aprovado pelo professor") return { bg: "rgba(0,168,84,0.25)", color: "#008C3A" };
+  if (s === "pendente")   return { bg: "rgba(255,184,28,0.18)", color: "#B8860B" };
+  if (s === "cancelado")  return { bg: "rgba(214,59,59,0.18)", color: "#B62C2C" };
   return { bg: "rgba(139,135,160,0.10)", color: C.muted };
 
+}
+
+function getPrimaryDayTone(events: ApiCoaching[]) {
+  const statuses = new Set(events.map((event) => event.status?.toLowerCase()));
+
+  if (statuses.has("cancelado")) return { accent: C.red, soft: C.redLight };
+  if (statuses.has("pendente")) return { accent: C.amber, soft: "rgba(255,184,28,0.12)" };
+  if (statuses.has("confirmado") || statuses.has("aprovado pelo professor")) return { accent: "#00A854", soft: "rgba(0,168,84,0.12)" };
+  return { accent: C.muted, soft: "rgba(139,135,160,0.08)" };
 }
 
 export default function CalendarioPage() {
@@ -182,10 +213,47 @@ export default function CalendarioPage() {
     });
   }, [mesAtual, coachingsPorData]);
 
-  const eventosSelecionados = dataSelecionada ? (coachingsPorData[dataSelecionada] ?? []) : [];
   const hojeIso = toIsoDate(new Date());
+  const eventosSelecionados = useMemo(() => {
+    if (!dataSelecionada) return [];
+    return [...(coachingsPorData[dataSelecionada] ?? [])]
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+  }, [coachingsPorData, dataSelecionada]);
+
+  const resumo = useMemo(() => {
+    const monthCount = coachings
+      .filter((item) => {
+        const data = fromIsoDate(item.date);
+        return data.getFullYear() === mesAtual.getFullYear() && data.getMonth() === mesAtual.getMonth();
+      })
+      .length;
+
+    const dateRef = dataSelecionada ? fromIsoDate(dataSelecionada) : new Date();
+    const weekStart = startOfWeek(dateRef);
+    const weekEnd = endOfWeek(dateRef);
+
+    const weekCount = coachings
+      .filter((item) => {
+        const data = fromIsoDate(item.date);
+        return data >= weekStart && data <= weekEnd;
+      })
+      .length;
+
+    return {
+      monthCount,
+      weekCount,
+      selectedCount: eventosSelecionados.length,
+    };
+  }, [coachings, mesAtual, dataSelecionada, eventosSelecionados.length]);
+
   const navegarMes = (offset: number) => {
     setMesAtual((prev) => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+  };
+
+  const selecionarHoje = () => {
+    const hoje = new Date();
+    setMesAtual(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    setDataSelecionada(toIsoDate(hoje));
   };
 
   return (
@@ -214,18 +282,22 @@ export default function CalendarioPage() {
               Visualiza os teus coachings por dia e encontra rapidamente detalhes de horário, modalidade e estúdio.
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            {[{ label: "Mês anterior", offset: -1 }, { label: "Próximo mês", offset: 1 }].map(btn => (
-              <button key={btn.label} onClick={() => navegarMes(btn.offset)}
-                style={{ padding: "10px 18px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.white, color: C.inkMid, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONTS.sans, transition: "all 0.15s", boxShadow: "0 2px 8px rgba(28,24,40,0.04)" }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.rose}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = C.border}
-              >
-                {btn.label}
-              </button>
+        </div>
+
+        {!loading && utilizadorAtual && !erro && (
+          <div className="calendar-summary" style={{ marginBottom: 20 }}>
+            {[
+              { label: "No mês", value: resumo.monthCount },
+              { label: "Na semana", value: resumo.weekCount },
+              { label: "No dia", value: resumo.selectedCount },
+            ].map((item) => (
+              <div key={item.label} style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "12px 14px", boxShadow: "0 2px 14px rgba(28,24,40,0.04)" }}>
+                <p style={{ margin: 0, color: C.muted, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>{item.label}</p>
+                <p style={{ margin: "4px 0 0", color: C.ink, fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{item.value}</p>
+              </div>
             ))}
           </div>
-        </div>
+        )}
 
         {/* ── Alerts ──────────────────────────────────────────────────────── */}
         {!loadingSessao && !utilizadorAtual && (
@@ -245,20 +317,38 @@ export default function CalendarioPage() {
 
         {/* ── Main grid ───────────────────────────────────────────────────── */}
         {!loading && utilizadorAtual && !erro && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 0.7fr)",
-            gap: 20,
-            alignItems: "start", // ← KEY FIX: prevents columns stretching each other
-          }}>
+          <div className="calendar-layout" style={{ alignItems: "start" }}>
 
             {/* ── Calendar ──────────────────────────────────────────────── */}
             <section style={{ background: C.white, borderRadius: 20, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: 20 }}>
               {/* Month header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: C.ink, textTransform: "capitalize" }}>{formatMonthTitle(mesAtual)}</h2>
-                <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{coachings.length} coaching(s)</span>
+              <div style={{ display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <button
+                  onClick={() => navegarMes(-1)}
+                  style={{ width: 42, height: 42, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 999, border: `1.5px solid ${C.border}`, background: C.white, color: C.inkMid, cursor: "pointer", fontFamily: FONTS.sans, transition: "all 0.15s", boxShadow: "0 2px 8px rgba(28,24,40,0.04)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.rose}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = C.border}
+                  aria-label="Mês anterior"
+                >
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>‹</span>
+                </button>
+
+                <div style={{ textAlign: "center" }}>
+                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: C.ink, textTransform: "capitalize" }}>{formatMonthTitle(mesAtual)}</h2>
+                  <span style={{ display: "inline-block", marginTop: 4, fontSize: 11, color: C.muted, fontWeight: 600 }}>{resumo.monthCount} coaching(s)</span>
+                </div>
+
+                <button
+                  onClick={() => navegarMes(1)}
+                  style={{ width: 42, height: 42, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: 999, border: `1.5px solid ${C.border}`, background: C.white, color: C.inkMid, cursor: "pointer", fontFamily: FONTS.sans, transition: "all 0.15s", boxShadow: "0 2px 8px rgba(28,24,40,0.04)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.rose}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = C.border}
+                  aria-label="Próximo mês"
+                >
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>›</span>
+                </button>
               </div>
+
 
               {/* Week day headers */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 6 }}>
@@ -273,6 +363,7 @@ export default function CalendarioPage() {
                   const isSelected = dia.iso === dataSelecionada;
                   const isToday = dia.iso === hojeIso;
                   const hasEvents = dia.events.length > 0;
+                  const dayTone = hasEvents ? getPrimaryDayTone(dia.events) : null;
 
                   return (
                     <button
@@ -285,8 +376,8 @@ export default function CalendarioPage() {
                         border: isSelected
                           ? "1.5px solid transparent"
                           : isToday
-                          ? `1.5px solid ${C.amber}`
-                          : `1.5px solid ${dia.isCurrentMonth ? C.border : "transparent"}`,
+                          ? `1.5px solid ${C.blue}`
+                          : `1.5px solid ${dia.isCurrentMonth && !hasEvents ? C.border : "transparent"}`,
                         background: isSelected
                           ? C.purpleGrad
                           : dia.isCurrentMonth ? C.white : C.surface,
@@ -298,22 +389,33 @@ export default function CalendarioPage() {
                         gap: 4,
                         opacity: dia.isCurrentMonth ? 1 : 0.45,
                       }}
-                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = C.rose; }}
-                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = isToday ? C.amber : dia.isCurrentMonth ? C.border : "transparent"; }}
                     >
-                      <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? "#fff" : isToday ? C.amber : C.ink }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isSelected ? "#fff" : isToday ? C.blue : hasEvents ? (dayTone?.accent ?? C.ink) : C.ink }}>
                         {dia.day}
                       </span>
+                      {hasEvents && (
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: isSelected ? "#fff" : (dayTone?.accent ?? C.muted) }} />
+                      )}
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {dia.events.slice(0, 2).map(ev => (
+                          (() => {
+                            const badge = estadoBadge(ev.status);
+                            return (
                           <div key={ev.id_coaching} style={{
-                            borderRadius: 4, padding: "2px 5px", fontSize: 9, fontWeight: 600,
-                            background: isSelected ? "rgba(255,255,255,0.2)" : C.roseLight,
-                            color: isSelected ? "#fff" : C.rose,
-                            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                            borderRadius: 4,
+                            padding: "2px 5px",
+                            fontSize: 9,
+                            fontWeight: 600,
+                            background: isSelected ? "rgba(255,255,255,0.18)" : badge.bg,
+                            color: isSelected ? "#fff" : badge.color,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}>
                             {ev.modalidade}
                           </div>
+                            );
+                          })()
                         ))}
                         {dia.events.length > 2 && (
                           <span style={{ fontSize: 9, color: isSelected ? "rgba(255,255,255,0.7)" : C.muted }}>
@@ -335,9 +437,11 @@ export default function CalendarioPage() {
               border: `1px solid ${C.border}`,
               boxShadow: "0 2px 20px rgba(28,24,40,0.05)",
               padding: 20,
-              minHeight: 520, // ← KEY FIX: fixed minimum height prevents layout jump
+              minHeight: 520,
               display: "flex",
               flexDirection: "column",
+              position: "sticky",
+              top: 16,
             }}>
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 20 }}>
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: C.ink }}>Detalhes do dia</h2>
@@ -385,7 +489,6 @@ export default function CalendarioPage() {
                             { label: "Estúdio", value: coaching.estudio },
                             { label: "Professor", value: coaching.professor },
                             ...(coaching.aluno ? [{ label: "Aluno", value: coaching.aluno }] : []),
-                            { label: "Preço", value: `${coaching.price}€` },
                           ].map(row => (
                             <div key={row.label} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, fontWeight: 600, minWidth: 64 }}>{row.label}</span>
@@ -407,6 +510,35 @@ export default function CalendarioPage() {
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
+
+        .calendar-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.7fr);
+          gap: 20px;
+        }
+
+        .calendar-summary {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        @media (max-width: 1024px) {
+          .calendar-layout {
+            grid-template-columns: 1fr;
+          }
+
+          .calendar-layout aside {
+            position: static !important;
+            min-height: 360px !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .calendar-summary {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
     </div>
   );
