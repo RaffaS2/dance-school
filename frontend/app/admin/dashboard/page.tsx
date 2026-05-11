@@ -21,6 +21,27 @@ interface Modality {
   nome?: string;
 }
 
+interface Item {
+  id_item: number;
+  name: string;
+  id_user?: number | null;
+}
+
+interface User {
+  id_user: number;
+  name: string;
+}
+
+interface ItemRequest {
+  id_item_request: number;
+  request_date: string;
+  return_date: string | null;
+  id_item: number;
+  id_user: number;
+  delivery_status: number;
+  request_status: number;
+}
+
 interface DashboardState {
   loading: boolean;
   error: string | null;
@@ -30,7 +51,12 @@ interface DashboardState {
   modalitiesCount: number;
   coachings: Coaching[];
   modalities: Modality[];
+  items: Item[];
+  usersList: User[];
+  itemRequests: ItemRequest[];
 }
+
+type DashboardData = Pick<DashboardState, "users" | "coachingsCount" | "professors" | "modalitiesCount" | "coachings" | "modalities" | "items" | "usersList" | "itemRequests">;
 
 const INITIAL: DashboardState = {
   loading: true,
@@ -41,6 +67,9 @@ const INITIAL: DashboardState = {
   modalitiesCount: 0,
   coachings: [],
   modalities: [],
+  items: [],
+  usersList: [],
+  itemRequests: [],
 };
 
 async function apiFetch<T>(path: string): Promise<T> {
@@ -58,15 +87,16 @@ function toArray<T>(raw: unknown): T[] {
 export default function DashboardPage() {
   const [state, setState] = useState<DashboardState>(INITIAL);
 
-  const fetchDashboard = useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+  const loadDashboardData = useCallback(async (): Promise<DashboardData> => {
 
-    const [usersRaw, coachingsRaw, professorsRaw, modalitiesRaw] =
+    const [usersRaw, coachingsRaw, professorsRaw, modalitiesRaw, itemsRaw, itemRequestsRaw] =
       await Promise.allSettled([
         apiFetch<unknown>("/users"),
         apiFetch<unknown>("/coachings"),
         apiFetch<unknown>("/professors"),
         apiFetch<unknown>("/modalities"),
+        apiFetch<unknown>("/items"),
+        apiFetch<unknown>("/item-requests"),
       ]);
 
     const count = (r: PromiseSettledResult<unknown>) =>
@@ -89,21 +119,61 @@ export default function DashboardPage() {
         ? toArray<Modality>(modalitiesRaw.value).slice(0, 8)
         : [];
 
-    setState({
-      loading: false,
-      error: null,
+    const itemList: Item[] =
+      itemsRaw.status === "fulfilled"
+        ? toArray<Item>(itemsRaw.value)
+        : [];
+
+    const userList: User[] =
+      usersRaw.status === "fulfilled"
+        ? toArray<User>(usersRaw.value)
+        : [];
+
+    const itemRequestList: ItemRequest[] =
+      itemRequestsRaw.status === "fulfilled"
+        ? toArray<ItemRequest>(itemRequestsRaw.value)
+        : [];
+
+    return {
       users: count(usersRaw),
       coachingsCount: count(coachingsRaw),
       professors: count(professorsRaw),
       modalitiesCount: count(modalitiesRaw),
       coachings: coachingList,
       modalities: modalityList,
-    });
+      items: itemList,
+      usersList: userList,
+      itemRequests: itemRequestList,
+    };
   }, []);
 
+  const fetchDashboard = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const data = await loadDashboardData();
+      setState({ loading: false, error: null, ...data });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : "Falha ao carregar o dashboard.",
+      }));
+    }
+  }, [loadDashboardData]);
+
   useEffect(() => {
-    fetchDashboard();
-  }, [fetchDashboard]);
+    void loadDashboardData()
+      .then((data) => {
+        setState((prev) => ({ ...prev, loading: false, error: null, ...data }));
+      })
+      .catch((error: unknown) => {
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: error instanceof Error ? error.message : "Falha ao carregar o dashboard.",
+        }));
+      });
+  }, [loadDashboardData]);
 
   const statCards = [
     { label: "Utilizadores",   value: state.users,           color: "text-blue-600" },

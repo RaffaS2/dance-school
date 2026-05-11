@@ -57,6 +57,7 @@ function initials(value: string) {
 }
 
 function isActiveRequest(r: ApiItemRequest) { return !r.return_date; }
+function isPendingReturnRequest(r: ApiItemRequest) { return !r.return_date && r.request_status === 2; }
 function formatDate(d: string) { return new Date(d).toLocaleDateString("pt-PT"); }
 function hojeISO() { return new Date().toISOString().split("T")[0]; }
 
@@ -253,7 +254,9 @@ type ItemCardProps = {
 	item: InventoryItem;
 	estado: string;
 	emPosse: boolean;
+	devolucaoPendente: boolean;
 	isDono: boolean;
+	isAdmin: boolean;
 	bloqueado: boolean;
 	isLoading: boolean;
 	limiteAtingido: boolean;
@@ -263,7 +266,9 @@ type ItemCardProps = {
 	onAmpliada: (url: string) => void;
 };
 
-function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+function ItemCard({ item, estado, emPosse, devolucaoPendente, isDono, isAdmin, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+	const podeRemover = isDono || isAdmin;
+
 	return (
 		<article
 			style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s" }}
@@ -299,12 +304,12 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 				</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
 					{emPosse ? (
-						<button onClick={() => onDevolver(item)} disabled={isLoading} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, fontFamily: FONTS.sans }}>
-							{isLoading ? "A processar..." : "Devolver Item"}
+						<button onClick={() => onDevolver(item)} disabled={isLoading || devolucaoPendente} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: (isLoading || devolucaoPendente) ? "not-allowed" : "pointer", opacity: (isLoading || devolucaoPendente) ? 0.6 : 1, fontFamily: FONTS.sans }}>
+							{isLoading ? "A processar..." : devolucaoPendente ? "Pedido pendente" : "Pedir devolução"}
 						</button>
-					) : isDono ? (
+					) : podeRemover ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px dashed ${C.border}`, background: "transparent", color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
-							O teu item
+							Item gerido por si
 						</button>
 					) : bloqueado ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.border, color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
@@ -315,7 +320,7 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 							{isLoading ? "A processar..." : limiteAtingido ? "Limite atingido" : "Requisitar Item"}
 						</button>
 					)}
-					{isDono && !emPosse && (
+					{podeRemover && !emPosse && (
 						<button onClick={() => onRemover(item)} disabled={isLoading}
 							style={{ width: "100%", padding: "10px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
 							onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
@@ -357,6 +362,7 @@ export default function InventoryPage() {
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
 	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("disponivel");
 	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
+	const isAdmin = utilizadorAtual?.id_user_type === 1;
 
 	// ── Pagination state ─────────────────────────────────────────────────────
 	const [paginaItens, setPaginaItens] = useState(1);
@@ -477,15 +483,16 @@ export default function InventoryPage() {
 	async function devolverItem(item: InventoryItem) {
 		const request = requisicaoAtivaPorItem.get(item.id);
 		if (!request) return;
+		if (request.request_status === 2) return;
 		setItemEmAcao(item.id);
 		try {
 			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
 				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
-				body: JSON.stringify({ request_date: request.request_date, return_date: hojeISO(), id_item: request.id_item, id_user: request.id_user, delivery_status: request.delivery_status, request_status: request.request_status }),
+				body: JSON.stringify({ action: "request_return" }),
 			});
-			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao devolver item"));
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao pedir devolução"));
 			await carregarDados();
-		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível devolver o item."); }
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível pedir a devolução."); }
 		finally { setItemEmAcao(null); }
 	}
 
@@ -498,6 +505,37 @@ export default function InventoryPage() {
 			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao remover item"));
 			await carregarDados();
 		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível remover o item."); }
+		finally { setItemEmAcao(null); }
+	}
+
+	// ── Admin: Devoluções Pendentes ──────────────────────────────────────────
+	const devoluçõesPendentes = useMemo(() => {
+		return requisicoes.filter(r => r.request_status === 2 && !r.return_date);
+	}, [requisicoes]);
+
+	async function aprovarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "approve_return", return_date: hojeISO() }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao aprovar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível aprovar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
+	async function rejeitarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "reject_return" }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao rejeitar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível rejeitar a devolução."); }
 		finally { setItemEmAcao(null); }
 	}
 
@@ -575,23 +613,32 @@ export default function InventoryPage() {
 							) : (
 								<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 									{requisicoesAtivas.map((item) => (
+											(() => {
+												const request = requisicaoAtivaPorItem.get(item.id);
+												const devolucaoPendente = Boolean(request && isPendingReturnRequest(request));
+												return (
 										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
 											<div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
 												<Avatar initials={item.visual} />
 												<div style={{ flex: 1, minWidth: 0 }}>
 												<p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nome}</p>
 												<p style={{ margin: "2px 0 0", fontSize: 11, color: C.muted }}>
-													Desde {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
+														Desde {formatDate(request?.request_date ?? hojeISO())}
 												</p>
+													{devolucaoPendente && (
+														<p style={{ margin: "4px 0 0", fontSize: 10, color: C.rose, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>Pedido de devolução pendente</p>
+													)}
 											</div>
 											</div>
 											<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 											<Badge estado="Em Uso" />
-											<button onClick={() => devolverItem(item)} disabled={itemEmAcao === item.id} style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: itemEmAcao === item.id ? "not-allowed" : "pointer", opacity: itemEmAcao === item.id ? 0.6 : 1, fontFamily: FONTS.sans }}>
-												{itemEmAcao === item.id ? "A devolver..." : "Devolver"}
+												<button onClick={() => devolverItem(item)} disabled={itemEmAcao === item.id || devolucaoPendente} style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: (itemEmAcao === item.id || devolucaoPendente) ? "not-allowed" : "pointer", opacity: (itemEmAcao === item.id || devolucaoPendente) ? 0.6 : 1, fontFamily: FONTS.sans }}>
+													{itemEmAcao === item.id ? "A pedir..." : devolucaoPendente ? "Pendente" : "Pedir devolução"}
 											</button>
 											</div>
 										</div>
+											);
+											})()
 									))}
 								</div>
 							)}
@@ -644,7 +691,86 @@ export default function InventoryPage() {
 					)}
 				</div>
 
-				{/* Os Meus Itens */}
+				{/* Devoluções Pendentes (Admin) */}
+				{isAdmin && devoluçõesPendentes.length > 0 && (
+					<div style={{ marginBottom: 32, background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
+						<div style={{ padding: "20px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+							<div>
+								<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
+								<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: 0 }}>Devoluções Pendentes</h2>
+							</div>
+							<span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans, padding: "3px 10px", borderRadius: 999, background: C.roseLight, color: C.rose }}>
+								{devoluçõesPendentes.length}
+							</span>
+						</div>
+						<div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+							{devoluçõesPendentes.map((request, idx) => {
+								const item = itens.find(i => i.id === request.id_item);
+								const utilizador = typeof request.id_user === 'number' ? { id_user: request.id_user, name: `Utilizador #${request.id_user}` } : null;
+								return (
+									<div key={request.id_item_request} style={{ 
+										padding: "16px 24px", 
+										borderBottom: idx < devoluçõesPendentes.length - 1 ? `1px solid ${C.border}` : "none",
+										display: "flex", 
+										alignItems: "center", 
+										justifyContent: "space-between", 
+										gap: 16,
+										"&:hover": { background: C.surface }
+									}}>
+										<div style={{ flex: 1, minWidth: 0 }}>
+											<p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: C.ink }}>{item?.nome ?? `Item #${request.id_item}`}</p>
+											<p style={{ margin: 0, fontSize: 11, color: C.muted }}>
+												Solicitado por {utilizador?.name ?? `Utilizador #${request.id_user}`} em {formatDate(request.request_date)}
+											</p>
+										</div>
+										<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+											<button 
+												onClick={() => aprovarDevolucao(request.id_item_request)}
+												disabled={itemEmAcao === request.id_item_request}
+												style={{ 
+													padding: "8px 16px", 
+													borderRadius: 8, 
+													border: "none",
+													background: C.green, 
+													color: C.white, 
+													fontSize: 10, 
+													fontWeight: 700, 
+													letterSpacing: "0.12em", 
+													textTransform: "uppercase", 
+													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
+													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
+													fontFamily: FONTS.sans 
+												}}>
+												{itemEmAcao === request.id_item_request ? "A processar..." : "Aprovar"}
+											</button>
+											<button 
+												onClick={() => rejeitarDevolucao(request.id_item_request)}
+												disabled={itemEmAcao === request.id_item_request}
+												style={{ 
+													padding: "8px 16px", 
+													borderRadius: 8, 
+													border: `1px solid ${C.border}`,
+													background: C.white, 
+													color: C.ink, 
+													fontSize: 10, 
+													fontWeight: 700, 
+													letterSpacing: "0.12em", 
+													textTransform: "uppercase", 
+													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
+													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
+													fontFamily: FONTS.sans 
+												}}>
+												{itemEmAcao === request.id_item_request ? "A processar..." : "Recusar"}
+											</button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* Results count */}
 				{meusItens.length > 0 && (
 					<div style={{ marginBottom: 32 }}>
 						<SectionDivider label={`🗂 Os Meus Itens · ${meusItens.length}`} />
@@ -652,8 +778,9 @@ export default function InventoryPage() {
 							{meusItensPaginados.map((item) => {
 								const emPosse = requisicaoAtivaPorItem.has(item.id);
 								const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+								const devolucaoPendente = Boolean(requisicaoAtivaPorItem.get(item.id) && isPendingReturnRequest(requisicaoAtivaPorItem.get(item.id)!));
 								const estado = estadoDoItem(emPosse, bloqueado);
-								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
+								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} devolucaoPendente={devolucaoPendente} isDono isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
 							})}
 						</div>
 						<Pagination page={paginaMeusItens} total={meusItens.length} perPage={ITEMS_PER_PAGE} onChange={setPaginaMeusItens} />
@@ -669,9 +796,10 @@ export default function InventoryPage() {
 					{itensPaginados.map((item) => {
 						const emPosse = requisicaoAtivaPorItem.has(item.id);
 						const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+						const devolucaoPendente = Boolean(requisicaoAtivaPorItem.get(item.id) && isPendingReturnRequest(requisicaoAtivaPorItem.get(item.id)!));
 						const estado = estadoDoItem(emPosse, bloqueado);
 						return (
-							<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono={false} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
+								<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} devolucaoPendente={devolucaoPendente} isDono={false} isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
 						);
 					})}
 					{!loading && itensFiltrados.length === 0 && (
