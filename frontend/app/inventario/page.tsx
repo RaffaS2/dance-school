@@ -254,6 +254,7 @@ type ItemCardProps = {
 	estado: string;
 	emPosse: boolean;
 	isDono: boolean;
+	isAdmin: boolean;
 	bloqueado: boolean;
 	isLoading: boolean;
 	limiteAtingido: boolean;
@@ -263,7 +264,9 @@ type ItemCardProps = {
 	onAmpliada: (url: string) => void;
 };
 
-function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+function ItemCard({ item, estado, emPosse, isDono, isAdmin, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+	const podeRemover = isDono || isAdmin;
+
 	return (
 		<article
 			style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s" }}
@@ -302,9 +305,9 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 						<button onClick={() => onDevolver(item)} disabled={isLoading} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, fontFamily: FONTS.sans }}>
 							{isLoading ? "A processar..." : "Devolver Item"}
 						</button>
-					) : isDono ? (
+					) : podeRemover ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px dashed ${C.border}`, background: "transparent", color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
-							O teu item
+							Item gerido por si
 						</button>
 					) : bloqueado ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.border, color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
@@ -315,7 +318,7 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 							{isLoading ? "A processar..." : limiteAtingido ? "Limite atingido" : "Requisitar Item"}
 						</button>
 					)}
-					{isDono && !emPosse && (
+					{podeRemover && !emPosse && (
 						<button onClick={() => onRemover(item)} disabled={isLoading}
 							style={{ width: "100%", padding: "10px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
 							onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
@@ -357,6 +360,7 @@ export default function InventoryPage() {
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
 	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("disponivel");
 	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
+	const isAdmin = utilizadorAtual?.id_user_type === 1;
 
 	// ── Pagination state ─────────────────────────────────────────────────────
 	const [paginaItens, setPaginaItens] = useState(1);
@@ -653,7 +657,7 @@ export default function InventoryPage() {
 								const emPosse = requisicaoAtivaPorItem.has(item.id);
 								const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
 								const estado = estadoDoItem(emPosse, bloqueado);
-								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
+								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
 							})}
 						</div>
 						<Pagination page={paginaMeusItens} total={meusItens.length} perPage={ITEMS_PER_PAGE} onChange={setPaginaMeusItens} />
@@ -671,7 +675,7 @@ export default function InventoryPage() {
 						const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
 						const estado = estadoDoItem(emPosse, bloqueado);
 						return (
-							<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono={false} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
+								<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono={false} isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
 						);
 					})}
 					{!loading && itensFiltrados.length === 0 && (
