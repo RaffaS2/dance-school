@@ -168,21 +168,4 @@ const deleteItemRequest = async (req, res) => {
     }
 }
 
-// lista apenas as devoluções pendentes (request_status = 2)
-const getPendingReturns = async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT ir.*, i.name as item_name, u.name as user_name 
-             FROM item_requests ir
-             LEFT JOIN items i ON ir.id_item = i.id_item
-             LEFT JOIN users u ON ir.id_user = u.id_user
-             WHERE ir.request_status = 2 AND ir.return_date IS NULL
-             ORDER BY ir.request_date DESC`
-        )
-        res.json(result.rows)
-    } catch (error) {
-        res.status(500).json({ error: error.message })
-    }
-}
-
-module.exports = { createItemRequest, readAllItemRequests, readItemRequestById, updateItemRequest, deleteItemRequest, getPendingReturns }
+module.exports = { createItemRequest, readAllItemRequests, readItemRequestById, updateItemRequest, deleteItemRequest }

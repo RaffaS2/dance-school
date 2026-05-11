@@ -508,6 +508,38 @@ export default function InventoryPage() {
 		finally { setItemEmAcao(null); }
 	}
 
+	// ── Admin: Devoluções Pendentes ──────────────────────────────────────────
+	const isAdmin = utilizadorAtual?.id_user_type === 1;
+	const devoluçõesPendentes = useMemo(() => {
+		return requisicoes.filter(r => r.request_status === 2 && !r.return_date);
+	}, [requisicoes]);
+
+	async function aprovarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "approve_return", return_date: hojeISO() }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao aprovar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível aprovar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
+	async function rejeitarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "reject_return" }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao rejeitar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível rejeitar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
 	const pillEstados: { label: string; value: ItemStatusFilter }[] = [
 		{ label: "Disponível",    value: "disponivel"   },
 		{ label: "Indisponível",  value: "indisponivel" },
@@ -660,7 +692,86 @@ export default function InventoryPage() {
 					)}
 				</div>
 
-				{/* Os Meus Itens */}
+				{/* Devoluções Pendentes (Admin) */}
+				{isAdmin && devoluçõesPendentes.length > 0 && (
+					<div style={{ marginBottom: 32, background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
+						<div style={{ padding: "20px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+							<div>
+								<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
+								<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: 0 }}>Devoluções Pendentes</h2>
+							</div>
+							<span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans, padding: "3px 10px", borderRadius: 999, background: C.roseLight, color: C.rose }}>
+								{devoluçõesPendentes.length}
+							</span>
+						</div>
+						<div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+							{devoluçõesPendentes.map((request, idx) => {
+								const item = itens.find(i => i.id === request.id_item);
+								const utilizador = typeof request.id_user === 'number' ? { id_user: request.id_user, name: `Utilizador #${request.id_user}` } : null;
+								return (
+									<div key={request.id_item_request} style={{ 
+										padding: "16px 24px", 
+										borderBottom: idx < devoluçõesPendentes.length - 1 ? `1px solid ${C.border}` : "none",
+										display: "flex", 
+										alignItems: "center", 
+										justifyContent: "space-between", 
+										gap: 16,
+										"&:hover": { background: C.surface }
+									}}>
+										<div style={{ flex: 1, minWidth: 0 }}>
+											<p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 600, color: C.ink }}>{item?.nome ?? `Item #${request.id_item}`}</p>
+											<p style={{ margin: 0, fontSize: 11, color: C.muted }}>
+												Solicitado por {utilizador?.name ?? `Utilizador #${request.id_user}`} em {formatDate(request.request_date)}
+											</p>
+										</div>
+										<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+											<button 
+												onClick={() => aprovarDevolucao(request.id_item_request)}
+												disabled={itemEmAcao === request.id_item_request}
+												style={{ 
+													padding: "8px 16px", 
+													borderRadius: 8, 
+													border: "none",
+													background: C.green, 
+													color: C.white, 
+													fontSize: 10, 
+													fontWeight: 700, 
+													letterSpacing: "0.12em", 
+													textTransform: "uppercase", 
+													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
+													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
+													fontFamily: FONTS.sans 
+												}}>
+												{itemEmAcao === request.id_item_request ? "A processar..." : "Aprovar"}
+											</button>
+											<button 
+												onClick={() => rejeitarDevolucao(request.id_item_request)}
+												disabled={itemEmAcao === request.id_item_request}
+												style={{ 
+													padding: "8px 16px", 
+													borderRadius: 8, 
+													border: `1px solid ${C.border}`,
+													background: C.white, 
+													color: C.ink, 
+													fontSize: 10, 
+													fontWeight: 700, 
+													letterSpacing: "0.12em", 
+													textTransform: "uppercase", 
+													cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", 
+													opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, 
+													fontFamily: FONTS.sans 
+												}}>
+												{itemEmAcao === request.id_item_request ? "A processar..." : "Recusar"}
+											</button>
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				)}
+
+				{/* Results count */}
 				{meusItens.length > 0 && (
 					<div style={{ marginBottom: 32 }}>
 						<SectionDivider label={`🗂 Os Meus Itens · ${meusItens.length}`} />
