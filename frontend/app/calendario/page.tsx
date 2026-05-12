@@ -385,7 +385,6 @@ export default function CalendarioPage() {
                             { label: "Estúdio", value: coaching.estudio },
                             { label: "Professor", value: coaching.professor },
                             ...(coaching.aluno ? [{ label: "Aluno", value: coaching.aluno }] : []),
-                            { label: "Preço", value: `${coaching.price}€` },
                           ].map(row => (
                             <div key={row.label} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                               <span style={{ fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase", color: C.muted, fontWeight: 600, minWidth: 64 }}>{row.label}</span>

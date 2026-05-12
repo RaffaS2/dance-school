@@ -12,7 +12,7 @@ export default function Register() {
   const [name, setName] = useState('')
   const [apelido, setApelido] = useState('')
   const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [phone_number, setPhone] = useState('')
   const [userType, setUserType] = useState('3')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -23,11 +23,11 @@ export default function Register() {
   const handleRegister = async () => {
     setError('')
 
-    if (!name || !apelido || !email || !phone || !password || !confirmPassword) {
+    if (!name || !apelido || !email || !phone_number || !password || !confirmPassword) {
       setError('Por favor preenche todos os campos.')
       return
     }
-    if (!/^\d{9,15}$/.test(phone)) {
+    if (!/^\d{9,15}$/.test(phone_number)) {
       setError('Número de telefone inválido. Usa apenas dígitos (9 a 15).')
       return
     }
@@ -54,7 +54,7 @@ export default function Register() {
         body: JSON.stringify({
           name: `${name} ${apelido}`,
           email,
-          phone,        
+          phone_number,        
           password,
           id_user_type: parseInt(userType),
         }),
@@ -148,7 +148,7 @@ export default function Register() {
           <input
             type="tel"
             placeholder="912 345 678"
-            value={phone}
+            value={phone_number}
             onChange={(e) => setPhone(e.target.value.replace(/\s/g, ''))}
             className="w-full bg-[#fafafa] border border-[#eeeeee] rounded-md px-4 py-3 text-sm text-[#333] transition-all duration-300 focus:bg-white focus:border-[#D4537E] focus:outline-none focus:shadow-[0_0_0_3px_rgba(212,83,126,0.05)]"
           />
