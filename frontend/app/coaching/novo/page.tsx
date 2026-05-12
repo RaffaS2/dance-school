@@ -1,29 +1,52 @@
 import NovoCoachingForm from "./NovoCoachingForm";
 import { cookies } from "next/headers";
+import { getApiBase } from "../../lib/apiBase";
 
 async function getData() {
+  const apiBase = getApiBase();
 
   const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
 
-  const headers: HeadersInit = token ? { Cookie: `token=${token}` } : {};
+  const headers: HeadersInit = token
+    ? { Cookie: `token=${token}` }
+    : {};
 
-  const sessao = await fetch("http://localhost:3001/auth/me", { cache: "no-store", headers })
-    .then(r => r.ok ? r.json() : null);
+  const sessao = await fetch(`${apiBase}/auth/me`, {
+    cache: "no-store",
+    headers,
+  }).then((r) => (r.ok ? r.json() : null));
 
   const tipoUtilizador = sessao?.user?.id_user_type;
 
-  const alunosPromise = tipoUtilizador === 3
-    ? fetch("http://localhost:3001/students/me", { cache: "no-store", headers })
-        .then(r => r.ok ? r.json().then(d => [d]) : [])
-    : fetch("http://localhost:3001/students", { cache: "no-store", headers })
-        .then(r => r.json());
+  const alunosPromise =
+    tipoUtilizador === 3
+      ? fetch(`${apiBase}/students/me`, {
+          cache: "no-store",
+          headers,
+        }).then((r) => (r.ok ? r.json().then((d) => [d]) : []))
+      : fetch(`${apiBase}/students`, {
+          cache: "no-store",
+          headers,
+        }).then((r) => r.json());
 
   const [prof, alunos, mods, est] = await Promise.all([
-    fetch("http://localhost:3001/professors", { cache: "no-store", headers }).then(r => r.json()),
+    fetch(`${apiBase}/professors`, {
+      cache: "no-store",
+      headers,
+    }).then((r) => r.json()),
+
     alunosPromise,
-    fetch("http://localhost:3001/modalities", { cache: "no-store", headers }).then(r => r.json()),
-    fetch("http://localhost:3001/studios", { cache: "no-store", headers }).then(r => r.json()),
+
+    fetch(`${apiBase}/modalities`, {
+      cache: "no-store",
+      headers,
+    }).then((r) => r.json()),
+
+    fetch(`${apiBase}/studios`, {
+      cache: "no-store",
+      headers,
+    }).then((r) => r.json()),
   ]);
 
   return { prof, alunos, mods, est, sessao };
@@ -32,15 +55,8 @@ async function getData() {
 export default async function Page() {
   const data = await getData();
 
-  console.log("SESSAO:", JSON.stringify(data.sessao, null, 2));
-  console.log("PROF:", JSON.stringify(data.prof, null, 2));
-  console.log("ALUNOS:", JSON.stringify(data.alunos, null, 2));
-  console.log("MODS:", JSON.stringify(data.mods, null, 2));
-  console.log("EST:", JSON.stringify(data.est, null, 2));
-
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Conteúdo */}
       <div className="flex justify-center p-6">
         <NovoCoachingForm {...data} />
       </div>
