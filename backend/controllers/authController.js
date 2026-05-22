@@ -84,6 +84,20 @@ exports.register = async (req, res) => {
       [name, email, phone_number, password_hash, id_user_type || null]
     )
 
+    // Se for estudante, criar registo correspondente na tabela students
+    if (parseInt(id_user_type) === 3) {
+      try {
+        await pool.query(
+          'INSERT INTO students (id_user, name) VALUES ($1, $2)',
+          [result.rows[0].id_user, name]
+        )
+      } catch (err) {
+        console.error('Erro a criar students após register:', err)
+        // Não bloquear o registo principal, mas avisar o cliente
+        return res.status(201).json({ user: result.rows[0], warning: 'user created but failed to create student record' })
+      }
+    }
+
     return res.status(201).json({ user: result.rows[0] })
 
   } catch (err) {
