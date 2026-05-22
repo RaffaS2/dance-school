@@ -76,6 +76,29 @@ describe('register', () => {
     })
   })
 
+  test('type 3 registration also creates a students record', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id_user: 7, name: 'student user', email: 'student@test.com' }] })
+      .mockResolvedValueOnce({ rows: [{ id_student: 3, id_user: 7, name: 'student user' }] })
+
+    const { req, res } = createReqRes({
+      name: 'student user',
+      email: 'student@test.com',
+      phone: '910000000',
+      password: '123456',
+      id_user_type: 3
+    })
+
+    await register(req, res)
+
+    expect(pool.query).toHaveBeenCalledWith(
+      'INSERT INTO students (id_user, name) VALUES ($1, $2)',
+      [7, 'student user']
+    )
+    expect(res.status).toHaveBeenCalledWith(201)
+  })
+
 })
 
 describe('login', () => {

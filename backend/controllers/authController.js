@@ -13,7 +13,8 @@ const transporter = nodemailer.createTransport({
 
 // Registo
 exports.register = async (req, res) => {
-  const { name, email, phone_number, password, id_user_type } = req.body
+  const { name, email, phone_number, phone, password, id_user_type } = req.body
+  const contactPhone = phone_number ?? phone
 
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Preenche todos os campos obrigatórios.' })
@@ -41,7 +42,7 @@ exports.register = async (req, res) => {
       }
 
       const approval_token = jwt.sign(
-        { email, name, phone_number, password_hash },
+        { email, name, phone_number: contactPhone, password_hash },
         process.env.JWT_SECRET,
         { expiresIn: '48h' }
       )
@@ -49,7 +50,7 @@ exports.register = async (req, res) => {
       await pool.query(
         `INSERT INTO pending_teachers (name, email, phone, password, approval_token)
          VALUES ($1, $2, $3, $4, $5)`,
-        [name, email, phone_number, password_hash, approval_token]
+        [name, email, contactPhone, password_hash, approval_token]
       )
 
       const approveUrl = `${process.env.FRONTEND_URL}/approvedteacher?token=${approval_token}`
@@ -81,8 +82,15 @@ exports.register = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (name, email, phone_number, password, id_user_type)
        VALUES ($1, $2, $3, $4, $5) RETURNING id_user, name, email`,
-      [name, email, phone_number, password_hash, id_user_type || null]
+      [name, email, contactPhone, password_hash, id_user_type || null]
     )
+
+    if (parseInt(id_user_type) === 3) {
+      await pool.query(
+        'INSERT INTO students (id_user, name) VALUES ($1, $2)',
+        [result.rows[0].id_user, name]
+      )
+    }
 
     return res.status(201).json({ user: result.rows[0] })
 

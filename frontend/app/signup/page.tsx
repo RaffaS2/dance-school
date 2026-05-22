@@ -54,7 +54,7 @@ export default function Register() {
         body: JSON.stringify({
           name: `${name} ${apelido}`,
           email,
-          phone,        
+          phone_number: phone,
           password,
           id_user_type: parseInt(userType),
         }),
