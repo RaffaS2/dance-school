@@ -57,6 +57,7 @@ function initials(value: string) {
 }
 
 function isActiveRequest(r: ApiItemRequest) { return !r.return_date; }
+function isPendingReturnRequest(r: ApiItemRequest) { return !r.return_date && r.request_status === 2; }
 function formatDate(d: string) { return new Date(d).toLocaleDateString("pt-PT"); }
 function hojeISO() { return new Date().toISOString().split("T")[0]; }
 
@@ -253,7 +254,9 @@ type ItemCardProps = {
 	item: InventoryItem;
 	estado: string;
 	emPosse: boolean;
+	devolucaoPendente: boolean;
 	isDono: boolean;
+	isAdmin: boolean;
 	bloqueado: boolean;
 	isLoading: boolean;
 	limiteAtingido: boolean;
@@ -263,7 +266,9 @@ type ItemCardProps = {
 	onAmpliada: (url: string) => void;
 };
 
-function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+function ItemCard({ item, estado, emPosse, devolucaoPendente, isDono, isAdmin, bloqueado, isLoading, limiteAtingido, onRequisitar, onDevolver, onRemover, onAmpliada }: ItemCardProps) {
+	const podeRemover = isDono || isAdmin;
+
 	return (
 		<article
 			style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", transition: "box-shadow 0.2s, transform 0.2s" }}
@@ -299,12 +304,12 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 				</div>
 				<div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: "auto" }}>
 					{emPosse ? (
-						<button onClick={() => onDevolver(item)} disabled={isLoading} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, fontFamily: FONTS.sans }}>
-							{isLoading ? "A processar..." : "Devolver Item"}
+						<button onClick={() => onDevolver(item)} disabled={isLoading || devolucaoPendente} style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.purpleGrad, color: "#fff", fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", cursor: (isLoading || devolucaoPendente) ? "not-allowed" : "pointer", opacity: (isLoading || devolucaoPendente) ? 0.6 : 1, fontFamily: FONTS.sans }}>
+							{isLoading ? "A processar..." : devolucaoPendente ? "Pedido pendente" : "Pedir devolução"}
 						</button>
-					) : isDono ? (
+					) : podeRemover ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: `1.5px dashed ${C.border}`, background: "transparent", color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
-							O teu item
+							Item gerido por si
 						</button>
 					) : bloqueado ? (
 						<button disabled style={{ width: "100%", padding: "11px", borderRadius: 10, border: "none", background: C.border, color: C.muted, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: "not-allowed", fontFamily: FONTS.sans }}>
@@ -315,7 +320,7 @@ function ItemCard({ item, estado, emPosse, isDono, bloqueado, isLoading, limiteA
 							{isLoading ? "A processar..." : limiteAtingido ? "Limite atingido" : "Requisitar Item"}
 						</button>
 					)}
-					{isDono && !emPosse && (
+					{podeRemover && !emPosse && (
 						<button onClick={() => onRemover(item)} disabled={isLoading}
 							style={{ width: "100%", padding: "10px", borderRadius: 10, background: "transparent", border: `1.5px solid rgba(201,75,115,0.25)`, color: C.rose, fontSize: 11, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.5 : 1, fontFamily: FONTS.sans, transition: "all 0.15s" }}
 							onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = C.roseSoft; }}
@@ -357,6 +362,7 @@ export default function InventoryPage() {
 	const [filtroCategoria, setFiltroCategoria] = useState("todas");
 	const [filtroEstado, setFiltroEstado] = useState<ItemStatusFilter>("disponivel");
 	const [imagemAmpliada, setImagemAmpliada] = useState<string | null>(null);
+	const isAdmin = Number(utilizadorAtual?.id_user_type) === 1;
 
 	// ── Pagination state ─────────────────────────────────────────────────────
 	const [paginaItens, setPaginaItens] = useState(1);
@@ -477,15 +483,31 @@ export default function InventoryPage() {
 	async function devolverItem(item: InventoryItem) {
 		const request = requisicaoAtivaPorItem.get(item.id);
 		if (!request) return;
+		if (request.request_status === 2) return;
 		setItemEmAcao(item.id);
 		try {
 			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
 				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
-				body: JSON.stringify({ request_date: request.request_date, return_date: hojeISO(), id_item: request.id_item, id_user: request.id_user, delivery_status: request.delivery_status, request_status: request.request_status }),
+				body: JSON.stringify({ action: "request_return" }),
 			});
-			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao devolver item"));
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao pedir devolução"));
 			await carregarDados();
-		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível devolver o item."); }
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível pedir a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
+	async function cancelarDevolucao(item: InventoryItem) {
+		const request = requisicaoAtivaPorItem.get(item.id);
+		if (!request || request.request_status !== 2) return;
+		setItemEmAcao(item.id);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${request.id_item_request}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "cancel_return" }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao cancelar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível cancelar a devolução."); }
 		finally { setItemEmAcao(null); }
 	}
 
@@ -501,9 +523,39 @@ export default function InventoryPage() {
 		finally { setItemEmAcao(null); }
 	}
 
+	// ── Admin: Devoluções Pendentes ──────────────────────────────────────────
+	const devoluçõesPendentes = useMemo(() => {
+		return requisicoes.filter(r => r.request_status === 2 && !r.return_date);
+	}, [requisicoes]);
+
+	async function aprovarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "approve_return", return_date: hojeISO() }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao aprovar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível aprovar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
+	async function rejeitarDevolucao(requestId: number) {
+		setItemEmAcao(requestId);
+		try {
+			const res = await fetch(`${apiBase}/item-requests/${requestId}`, {
+				method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include",
+				body: JSON.stringify({ action: "reject_return" }),
+			});
+			if (!res.ok) throw new Error(await getApiErrorMessage(res, "Falha ao rejeitar devolução"));
+			await carregarDados();
+		} catch (error) { alert(error instanceof Error ? error.message : "Não foi possível rejeitar a devolução."); }
+		finally { setItemEmAcao(null); }
+	}
+
 	const pillEstados: { label: string; value: ItemStatusFilter }[] = [
 		{ label: "Disponível",    value: "disponivel"   },
-		{ label: "Em Uso (meus)", value: "em-uso"       },
 		{ label: "Indisponível",  value: "indisponivel" },
 	];
 
@@ -527,6 +579,7 @@ export default function InventoryPage() {
 						<p style={{ fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: C.rose, fontWeight: 600, marginBottom: 6 }}>Gestão de Material</p>
 						<h1 style={{ fontFamily: FONTS.serif, fontSize: 42, fontWeight: 400, color: C.ink, lineHeight: 1, margin: 0 }}>Inventário</h1>
 					</div>
+
 					<Link href="/inventario/novo" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: C.purpleGrad, color: "#fff", padding: "12px 22px", borderRadius: 12, fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 4px 16px rgba(30,19,48,0.25)" }}>
 						<svg xmlns="http://www.w3.org/2000/svg" width={14} height={14} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
 							<path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -555,10 +608,10 @@ export default function InventoryPage() {
 					</div>
 				)}
 
-				{/* Top grid */}
-				<div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16, marginBottom: 24, alignItems: "start" }}>
+				{/* Top grid: left = Requisições, middle = Filtros, right = Admin (vertical) */}
+				<div style={{ display: "grid", gridTemplateColumns: isAdmin ? "1fr 1fr 360px" : "1fr 2fr", gap: 16, marginBottom: 24, alignItems: "stretch" }}>
 					{/* Requisições ativas */}
-					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden" }}>
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
 						<div style={{ padding: "20px 20px 0" }}>
 							<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>As Minhas</p>
 							<div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -568,7 +621,7 @@ export default function InventoryPage() {
 								</span>
 							</div>
 						</div>
-						<div style={{ padding: "0 20px 20px" }}>
+						<div style={{ padding: "0 20px 20px", flex: 1, overflow: "auto" }}>
 							{requisicoesAtivas.length === 0 ? (
 								<div style={{ borderRadius: 10, border: `1.5px dashed ${C.border}`, padding: "24px 16px", textAlign: "center" }}>
 									<p style={{ margin: 0, fontSize: 12, color: C.muted }}>Nenhum item em teu poder.</p>
@@ -576,24 +629,40 @@ export default function InventoryPage() {
 							) : (
 								<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
 									{requisicoesAtivas.map((item) => (
-										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12 }}>
-											<Avatar initials={item.visual} />
-											<div style={{ flex: 1, minWidth: 0 }}>
+											(() => {
+												const request = requisicaoAtivaPorItem.get(item.id);
+												const devolucaoPendente = Boolean(request && isPendingReturnRequest(request));
+												return (
+										<div key={item.id} style={{ background: C.roseSoft, border: `1px solid rgba(201,75,115,0.15)`, borderRadius: 10, padding: "12px 14px", display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+											<div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0, flex: 1 }}>
+												<Avatar initials={item.visual} />
+												<div style={{ flex: 1, minWidth: 0 }}>
 												<p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.nome}</p>
 												<p style={{ margin: "2px 0 0", fontSize: 11, color: C.muted }}>
-													Desde {formatDate(requisicaoAtivaPorItem.get(item.id)?.request_date ?? hojeISO())}
+														Desde {formatDate(request?.request_date ?? hojeISO())}
 												</p>
 											</div>
+											</div>
+											<div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
 											<Badge estado="Em Uso" />
+													<button
+														onClick={() => devolucaoPendente ? cancelarDevolucao(item) : devolverItem(item)}
+														disabled={itemEmAcao === item.id}
+														style={{ padding: "8px 12px", borderRadius: 999, border: `1px solid ${C.roseLight}`, background: C.white, color: C.rose, fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", cursor: itemEmAcao === item.id ? "not-allowed" : "pointer", opacity: itemEmAcao === item.id ? 0.6 : 1, fontFamily: FONTS.sans }}>
+													{itemEmAcao === item.id ? "A processar..." : devolucaoPendente ? "Pendente" : "Pedir devolução"}
+											</button>
+											</div>
 										</div>
+											);
+											})()
 									))}
 								</div>
 							)}
 						</div>
 					</div>
 
-					{/* Filtros */}
-					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px" }}>
+					{/* Filtros (centro) */}
+					<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", padding: "20px 24px", display: "flex", flexDirection: "column", height: "100%" }}>
 						<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Pesquisa</p>
 						<h2 style={{ fontFamily: FONTS.serif, fontSize: 22, fontWeight: 400, color: C.ink, margin: "0 0 20px" }}>Filtros</h2>
 						<div style={{ position: "relative", marginBottom: 16 }}>
@@ -606,6 +675,8 @@ export default function InventoryPage() {
 								onBlur={e => (e.target.style.borderColor = C.border)}
 							/>
 						</div>
+
+				
 						<div style={{ marginBottom: 16 }}>
 							<p style={{ margin: "0 0 8px", fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", color: C.muted, fontWeight: 600 }}>Categoria</p>
 							<select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}
@@ -623,6 +694,45 @@ export default function InventoryPage() {
 							</div>
 						</div>
 					</div>
+
+					{/* Admin: Devoluções Pendentes (panel vertical, right) - apenas admins */}
+					{isAdmin && (
+						<div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 20px rgba(28,24,40,0.05)", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
+							<div style={{ padding: "20px 18px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+								<div>
+									<p style={{ margin: "0 0 2px", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: C.rose, fontWeight: 600 }}>Administração</p>
+									<h3 style={{ fontFamily: FONTS.serif, fontSize: 16, fontWeight: 400, color: C.ink, margin: 0 }}>Devoluções</h3>
+								</div>
+								<span style={{ fontSize: 11, fontWeight: 700, fontFamily: FONTS.sans, padding: "3px 10px", borderRadius: 999, background: C.roseLight, color: C.rose }}>
+									{devoluçõesPendentes.length}
+								</span>
+							</div>
+							<div style={{ display: "flex", flexDirection: "column", gap: 0, padding: 12, flex: 1, overflow: "auto" }}>
+								{devoluçõesPendentes.length === 0 ? (
+									<div style={{ padding: "8px 12px", color: C.muted, fontSize: 12 }}>
+										Sem devoluções pendentes.
+									</div>
+								) : (
+									devoluçõesPendentes.map((request) => {
+										const item = itens.find(i => i.id === request.id_item);
+										const utilizador = typeof request.id_user === "number" ? { id_user: request.id_user, name: `Utilizador #${request.id_user}` } : null;
+										return (
+											<div key={request.id_item_request} style={{ padding: "10px 12px", borderBottom: `1px dashed ${C.border}`, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+												<div style={{ minWidth: 0 }}>
+													<p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item?.nome ?? `Item #${request.id_item}`}</p>
+													<p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>{utilizador?.name ?? `Utilizador #${request.id_user}`}</p>
+												</div>
+												<div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+													<button onClick={() => aprovarDevolucao(request.id_item_request)} disabled={itemEmAcao === request.id_item_request} style={{ padding: "6px 10px", borderRadius: 8, border: "none", background: C.green, color: C.white, fontSize: 11, fontWeight: 700, cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, fontFamily: FONTS.sans }}>Aprovar</button>
+													<button onClick={() => rejeitarDevolucao(request.id_item_request)} disabled={itemEmAcao === request.id_item_request} style={{ padding: "6px 10px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.ink, fontSize: 11, fontWeight: 700, cursor: itemEmAcao === request.id_item_request ? "not-allowed" : "pointer", opacity: itemEmAcao === request.id_item_request ? 0.6 : 1, fontFamily: FONTS.sans }}>Recusar</button>
+												</div>
+											</div>
+										);
+									})
+								)}
+							</div>
+						</div>
+					)}
 				</div>
 
 				{/* Results count */}
@@ -638,7 +748,9 @@ export default function InventoryPage() {
 					)}
 				</div>
 
-				{/* Os Meus Itens */}
+				{/* (Admin panel moved to top-grid right column) */}
+
+				{/* Results count */}
 				{meusItens.length > 0 && (
 					<div style={{ marginBottom: 32 }}>
 						<SectionDivider label={`🗂 Os Meus Itens · ${meusItens.length}`} />
@@ -646,8 +758,9 @@ export default function InventoryPage() {
 							{meusItensPaginados.map((item) => {
 								const emPosse = requisicaoAtivaPorItem.has(item.id);
 								const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+								const devolucaoPendente = Boolean(requisicaoAtivaPorItem.get(item.id) && isPendingReturnRequest(requisicaoAtivaPorItem.get(item.id)!));
 								const estado = estadoDoItem(emPosse, bloqueado);
-								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
+								return <ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} devolucaoPendente={devolucaoPendente} isDono isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />;
 							})}
 						</div>
 						<Pagination page={paginaMeusItens} total={meusItens.length} perPage={ITEMS_PER_PAGE} onChange={setPaginaMeusItens} />
@@ -663,9 +776,10 @@ export default function InventoryPage() {
 					{itensPaginados.map((item) => {
 						const emPosse = requisicaoAtivaPorItem.has(item.id);
 						const bloqueado = Boolean(itemBloqueadoPorOutraRequisicao.get(item.id));
+						const devolucaoPendente = Boolean(requisicaoAtivaPorItem.get(item.id) && isPendingReturnRequest(requisicaoAtivaPorItem.get(item.id)!));
 						const estado = estadoDoItem(emPosse, bloqueado);
 						return (
-							<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} isDono={false} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
+								<ItemCard key={item.id} item={item} estado={estado} emPosse={emPosse} devolucaoPendente={devolucaoPendente} isDono={false} isAdmin={isAdmin} bloqueado={bloqueado} isLoading={itemEmAcao === item.id} limiteAtingido={requisicoesAtivas.length >= 3} onRequisitar={requisitarItem} onDevolver={devolverItem} onRemover={removerItem} onAmpliada={setImagemAmpliada} />
 						);
 					})}
 					{!loading && itensFiltrados.length === 0 && (
