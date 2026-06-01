@@ -47,26 +47,18 @@ export default function LoginForm() {
       })
 
       const meData = await meRes.json()
-      console.log('meRes status:', meRes.status) 
-      console.log('meData:', meData)
       const user = meData.user as SessionUser
-      console.log('user:', user)
-      console.log('id_user_type:', user?.id_user_type)
 
       const redirect = searchParams.get('redirect')
 
-      router.refresh() 
-      await new Promise(resolve => setTimeout(resolve, 100))
+      const userType = Number(user.id_user_type)
 
       if (redirect && redirect !== '/') {
-        router.push(redirect)
-      } else if (user.id_user_type === 1) {
-        router.push('/admin/dashboard')
-      } else if (user.id_user_type === 2 || user.id_user_type === 3) {
-        console.log('pushing to /calendario')
-        router.push('/calendario')
+        window.location.href = redirect
+      } else if (userType === 1) {
+        window.location.href = '/admin/dashboard'
       } else {
-        router.push('/calendario')
+        window.location.href = '/calendario'
       }
 
     } catch (err) {
