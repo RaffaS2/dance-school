@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { getApiBase } from '../lib/apiBase'
 
 type SessionUser = {
-  id_user: number;
+  id: number;
   name: string;
   email: string;
   id_user_type: number;
@@ -41,14 +41,7 @@ export default function LoginForm() {
         return
       }
 
-      const meRes = await fetch(`${apiBase}/auth/me`, {
-        credentials: 'include',
-        cache: 'no-store',
-      })
-
-      const meData = await meRes.json()
-      const user = meData.user as SessionUser
-
+      const user = data.user as SessionUser
       const redirect = searchParams.get('redirect')
 
       if (redirect && redirect !== '/') {
