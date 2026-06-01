@@ -6,11 +6,11 @@ const pool = require('./db')
 const cors = require('cors') // permite que o backend num dominio diferente acesse o frontend
 const cookieParser = require('cookie-parser') // "middleman" que ajuda o express a ler os cookies
 
-
-app.use(cors({ // permissão para o back falar com o front
-  origin: 'http://localhost:3000', // URLs do frontend em dev
-  credentials: true               // true para enviar os cookies
+app.use(cors({  // permissão para o back falar com o front
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',  // URLs do frontend em dev
+  credentials: true  // true para enviar os cookies
 }))
+
 app.use(express.json()) // permite que o SV leia JSON no corpo dos pedidos
 app.use(cookieParser()) // prepara o server para ler os cookies que o browser envia
 
@@ -33,9 +33,10 @@ app.get('/test-db', async (req, res) => {
 // Só arranca o servidor se for o ficheiro principal
 // Quando os testes fazem require('./server'), o listen NÃO é chamado
 if (require.main === module) {
-  app.listen(3001, () => {
-    console.log('running server on port 3001')
-  })
+ const PORT = process.env.PORT || 3001
+  app.listen(PORT, () => {
+  console.log(`running server on port ${PORT}`)
+})
 }
 
 module.exports = app // exporta o app para o Supertest usar
