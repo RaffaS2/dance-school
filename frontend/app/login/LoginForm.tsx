@@ -63,6 +63,7 @@ export default function LoginForm() {
       } else if (user.id_user_type === 1) {
         router.push('/admin/dashboard')
       } else if (user.id_user_type === 2 || user.id_user_type === 3) {
+        console.log('pushing to /calendario')
         router.push('/calendario')
       } else {
         router.push('/calendario')

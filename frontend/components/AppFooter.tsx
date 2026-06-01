@@ -24,7 +24,7 @@ export default function AppFooter() {
           </div>
 
           <div className="text-center md:text-right text-slate-300">© {year} Ent&apos;Artes</div>
-          <div className="text-center md:text-right text-slate-300">v0.0.4</div>
+          <div className="text-center md:text-right text-slate-300">v0.0.5</div>
 
         </div>
       </div>
