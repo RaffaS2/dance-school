@@ -54,11 +54,13 @@ export default function LoginForm() {
       const userType = Number(user.id_user_type)
 
       if (redirect && redirect !== '/') {
-        window.location.href = redirect
+        router.push(redirect)
       } else if (userType === 1) {
-        window.location.href = '/admin/dashboard'
+        router.push('/admin/dashboard')
+      } else if (userType === 2 || userType === 3) {
+        router.push('/calendario')
       } else {
-        window.location.href = '/calendario'
+        router.push('/calendario')
       }
 
     } catch (err) {
