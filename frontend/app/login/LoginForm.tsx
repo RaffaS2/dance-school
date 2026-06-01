@@ -47,13 +47,17 @@ export default function LoginForm() {
       })
 
       const meData = await meRes.json()
+      console.log('meRes status:', meRes.status) 
+      console.log('meData:', meData)
       const user = meData.user as SessionUser
+      console.log('user:', user)
+      console.log('id_user_type:', user?.id_user_type)
 
       const redirect = searchParams.get('redirect')
 
       router.refresh() 
       await new Promise(resolve => setTimeout(resolve, 100))
-      
+
       if (redirect && redirect !== '/') {
         router.push(redirect)
       } else if (user.id_user_type === 1) {
