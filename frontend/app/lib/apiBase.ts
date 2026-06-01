@@ -7,5 +7,8 @@
 }*/
 
 export function getApiBase() {
-	return process.env.NEXT_PUBLIC_API_BASE_URL || "https://dance-school-dw6q.onrender.com";
+  if (process.env.NODE_ENV === 'production') {
+    return '/api'
+  }
+  return 'http://localhost:3001/'
 }
